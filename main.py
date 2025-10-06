@@ -5,6 +5,134 @@ from typing import List, Tuple, Optional
 import json
 
 
+class MeterStickCalibrator:
+    """UI for calibrating scale using a meter stick."""
+
+    def __init__(self):
+        self.start_point = None
+        self.end_point = None
+        self.selecting = False
+        self.frame = None
+        self.clone = None
+        self.pixel_distance = None
+
+    def calibrate(self, frame: np.ndarray, stick_length_cm: float = 100.0) -> Optional[float]:
+        """Display UI for user to mark the meter stick endpoints.
+
+        Args:
+            frame: Video frame containing the meter stick
+            stick_length_cm: Length of the reference stick in centimeters (default 100 for meter stick)
+
+        Returns:
+            Scale factor in cm/pixel, or None if cancelled
+        """
+        self.frame = frame.copy()
+        self.clone = frame.copy()
+        self.start_point = None
+        self.end_point = None
+        self.selecting = False
+
+        cv2.namedWindow("Calibrate Scale - Mark Meter Stick")
+        cv2.setMouseCallback("Calibrate Scale - Mark Meter Stick", self._mouse_callback)
+
+        print("\n=== Scale Calibration ===")
+        print(f"Reference length: {stick_length_cm} cm")
+        print("1. Click at one end of the meter stick")
+        print("2. Click at the other end of the meter stick")
+        print("3. Press ENTER to confirm")
+        print("4. Press 'r' to reset")
+        print("5. Press ESC to cancel")
+
+        while True:
+            cv2.imshow("Calibrate Scale - Mark Meter Stick", self.frame)
+            key = cv2.waitKey(1) & 0xFF
+
+            # Enter key - confirm selection
+            if key == 13 and self.start_point is not None and self.end_point is not None:
+                break
+            # ESC key - cancel
+            elif key == 27:
+                cv2.destroyAllWindows()
+                return None
+            # 'r' key - reset
+            elif key == ord('r'):
+                self.frame = self.clone.copy()
+                self.start_point = None
+                self.end_point = None
+                self.selecting = False
+
+        cv2.destroyAllWindows()
+
+        # Calculate pixel distance
+        if self.start_point and self.end_point:
+            dx = self.end_point[0] - self.start_point[0]
+            dy = self.end_point[1] - self.start_point[1]
+            pixel_distance = np.sqrt(dx**2 + dy**2)
+
+            # Calculate scale: cm per pixel
+            scale = stick_length_cm / pixel_distance
+
+            print(f"\n✓ Calibration complete!")
+            print(f"  Pixel distance: {pixel_distance:.2f} pixels")
+            print(f"  Scale: {scale:.4f} cm/pixel")
+            print(f"  Scale: {1/scale:.2f} pixels/cm")
+
+            return scale
+
+        return None
+
+    def _mouse_callback(self, event, x, y, flags, param):
+        """Handle mouse events for meter stick marking."""
+        if event == cv2.EVENT_LBUTTONDOWN:
+            if self.start_point is None:
+                # First click - set start point
+                self.start_point = (x, y)
+                self.frame = self.clone.copy()
+                cv2.circle(self.frame, self.start_point, 5, (0, 255, 0), -1)
+                cv2.putText(self.frame, "Click at the other end",
+                           (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            else:
+                # Second click - set end point
+                self.end_point = (x, y)
+                self._draw_measurement()
+
+        elif event == cv2.EVENT_MOUSEMOVE:
+            if self.start_point is not None and self.end_point is None:
+                # Show preview line while moving
+                temp_frame = self.clone.copy()
+                cv2.circle(temp_frame, self.start_point, 5, (0, 255, 0), -1)
+                cv2.line(temp_frame, self.start_point, (x, y), (255, 255, 0), 2)
+
+                # Calculate and display distance
+                dx = x - self.start_point[0]
+                dy = y - self.start_point[1]
+                distance = np.sqrt(dx**2 + dy**2)
+                cv2.putText(temp_frame, f"{distance:.1f} pixels",
+                           (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
+
+                self.frame = temp_frame
+
+    def _draw_measurement(self):
+        """Draw the final measurement line."""
+        self.frame = self.clone.copy()
+        cv2.circle(self.frame, self.start_point, 5, (0, 255, 0), -1)
+        cv2.circle(self.frame, self.end_point, 5, (0, 255, 0), -1)
+        cv2.line(self.frame, self.start_point, self.end_point, (0, 255, 0), 2)
+
+        # Calculate distance
+        dx = self.end_point[0] - self.start_point[0]
+        dy = self.end_point[1] - self.start_point[1]
+        distance = np.sqrt(dx**2 + dy**2)
+
+        # Draw distance text
+        mid_x = (self.start_point[0] + self.end_point[0]) // 2
+        mid_y = (self.start_point[1] + self.end_point[1]) // 2
+        cv2.putText(self.frame, f"{distance:.1f} pixels",
+                   (mid_x + 10, mid_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+        cv2.putText(self.frame, "Press ENTER to confirm, 'r' to reset",
+                   (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+
 class ObjectSelector:
     """UI for selecting an object to track."""
 
@@ -28,7 +156,7 @@ class ObjectSelector:
         cv2.namedWindow("Select Object to Track")
         cv2.setMouseCallback("Select Object to Track", self._mouse_callback)
 
-        print("=== Object Selection ===")
+        print("\n=== Object Selection ===")
         print("1. Click and drag to draw a box around the object")
         print("2. Press ENTER to confirm selection")
         print("3. Press 'r' to reset selection")
@@ -101,6 +229,30 @@ class ObjectTracker:
         self.video_path = video_path
         self.output_path = output_path
         self.position_data = []
+        self.scale = None  # cm per pixel
+        self.reference_length_cm = None
+
+    def calibrate_scale(self, reference_length_cm: float = 100.0) -> bool:
+        """Calibrate the scale using a reference object (e.g., meter stick).
+
+        Args:
+            reference_length_cm: Length of reference object in centimeters
+
+        Returns:
+            True if calibration successful, False otherwise
+        """
+        cap = cv2.VideoCapture(self.video_path)
+        ret, frame = cap.read()
+        cap.release()
+
+        if not ret:
+            raise ValueError("Could not read video file")
+
+        calibrator = MeterStickCalibrator()
+        self.scale = calibrator.calibrate(frame, reference_length_cm)
+        self.reference_length_cm = reference_length_cm
+
+        return self.scale is not None
 
     def select_object(self) -> Optional[Tuple[int, int, int, int]]:
         """Allow user to select object with mouse by drawing a bounding box."""
@@ -160,20 +312,42 @@ class ObjectTracker:
 
                 # Store position data
                 timestamp = frame_number / fps if fps > 0 else 0
-                self.position_data.append({
+                data_entry = {
                     "frame": frame_number,
                     "timestamp": round(timestamp, 3),
-                    "bottom_x": center_x,
-                    "bottom_y": bottom_y,
-                    "bbox": {"x": x, "y": y, "w": w, "h": h}
-                })
+                    "bottom_x_pixels": center_x,
+                    "bottom_y_pixels": bottom_y,
+                    "bbox_pixels": {"x": x, "y": y, "w": w, "h": h}
+                }
+
+                # Add scaled measurements if calibration was performed
+                if self.scale is not None:
+                    bottom_x_cm = center_x * self.scale
+                    bottom_y_cm = bottom_y * self.scale
+                    data_entry.update({
+                        "bottom_x_cm": round(bottom_x_cm, 3),
+                        "bottom_y_cm": round(bottom_y_cm, 3),
+                        "bbox_cm": {
+                            "x": round(x * self.scale, 3),
+                            "y": round(y * self.scale, 3),
+                            "w": round(w * self.scale, 3),
+                            "h": round(h * self.scale, 3)
+                        }
+                    })
+
+                self.position_data.append(data_entry)
 
                 # Draw bottom point
                 cv2.circle(frame, (center_x, bottom_y), 5, (0, 0, 255), -1)
 
                 # Add position text
-                cv2.putText(frame, f"Bottom: ({center_x}, {bottom_y})",
-                           (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                if self.scale is not None:
+                    cv2.putText(frame, f"Bottom: ({center_x}, {bottom_y}) px = ({round(center_x * self.scale, 1)}, {round(bottom_y * self.scale, 1)}) cm",
+                               (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                else:
+                    cv2.putText(frame, f"Bottom: ({center_x}, {bottom_y}) px",
+                               (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
                 cv2.putText(frame, f"Frame: {frame_number}/{total_frames}",
                            (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
             else:
@@ -196,27 +370,66 @@ class ObjectTracker:
 
     def save_position_data(self, output_file: str = "position_data.json"):
         """Save the position data to a JSON file."""
-        with open(output_file, 'w') as f:
-            json.dump(self.position_data, f, indent=2)
-        print(f"Position data saved to {output_file}")
+        output_data = {
+            "metadata": {
+                "video_path": self.video_path,
+                "output_path": self.output_path,
+                "total_frames": len(self.position_data),
+                "calibrated": self.scale is not None
+            },
+            "tracking_data": self.position_data
+        }
 
-    def run(self):
-        """Run the complete tracking pipeline."""
-        print("Step 1: Select object to track")
+        # Add calibration info if available
+        if self.scale is not None:
+            output_data["metadata"]["calibration"] = {
+                "scale_cm_per_pixel": round(self.scale, 6),
+                "scale_pixels_per_cm": round(1/self.scale, 6),
+                "reference_length_cm": self.reference_length_cm
+            }
+
+        with open(output_file, 'w') as f:
+            json.dump(output_data, f, indent=2)
+        print(f"\n✓ Position data saved to {output_file}")
+
+    def run(self, calibrate: bool = True, reference_length_cm: float = 100.0):
+        """Run the complete tracking pipeline.
+
+        Args:
+            calibrate: Whether to perform scale calibration
+            reference_length_cm: Length of reference object in centimeters (default 100 for meter stick)
+        """
+        step = 1
+
+        # Optional calibration step
+        if calibrate:
+            print(f"Step {step}: Calibrate scale with reference object")
+            if not self.calibrate_scale(reference_length_cm):
+                print("Calibration cancelled. Continuing without scale calibration.")
+            step += 1
+
+        print(f"Step {step}: Select object to track")
         initial_bbox = self.select_object()
 
         if initial_bbox is None:
             print("No object selected. Exiting.")
             return
+        step += 1
 
-        print(f"Step 2: Tracking object in video...")
+        print(f"Step {step}: Tracking object in video...")
         self.track_object(initial_bbox)
+        step += 1
 
-        print(f"Step 3: Saving position data...")
+        print(f"Step {step}: Saving position data...")
         self.save_position_data()
 
-        print(f"Done! Output video: {self.output_path}")
-        print(f"Total frames tracked: {len(self.position_data)}")
+        print(f"\n{'='*50}")
+        print(f"✓ Done!")
+        print(f"  Output video: {self.output_path}")
+        print(f"  Total frames tracked: {len(self.position_data)}")
+        if self.scale is not None:
+            print(f"  Scale: {self.scale:.4f} cm/pixel")
+        print(f"{'='*50}")
 
 
 def main():
