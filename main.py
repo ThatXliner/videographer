@@ -133,6 +133,87 @@ class MeterStickCalibrator:
                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
 
+class ReferencePointSelector:
+    """UI for selecting which point on the bounding box to track."""
+
+    REFERENCE_POINTS = {
+        '1': ('top-left', lambda x, y, w, h: (x, y)),
+        '2': ('top-center', lambda x, y, w, h: (x + w // 2, y)),
+        '3': ('top-right', lambda x, y, w, h: (x + w, y)),
+        '4': ('center-left', lambda x, y, w, h: (x, y + h // 2)),
+        '5': ('center', lambda x, y, w, h: (x + w // 2, y + h // 2)),
+        '6': ('center-right', lambda x, y, w, h: (x + w, y + h // 2)),
+        '7': ('bottom-left', lambda x, y, w, h: (x, y + h)),
+        '8': ('bottom-center', lambda x, y, w, h: (x + w // 2, y + h)),
+        '9': ('bottom-right', lambda x, y, w, h: (x + w, y + h)),
+    }
+
+    def __init__(self):
+        self.selected_point = 'bottom-center'  # Default
+        self.selected_key = '8'
+
+    def select_reference_point(self, frame: np.ndarray, bbox: Tuple[int, int, int, int]) -> Tuple[str, callable]:
+        """Display UI for selecting reference point on bounding box.
+
+        Args:
+            frame: Video frame
+            bbox: Bounding box (x, y, w, h)
+
+        Returns:
+            Tuple of (point_name, point_calculator_function)
+        """
+        x, y, w, h = bbox
+        self.frame = frame.copy()
+
+        cv2.namedWindow("Select Reference Point")
+
+        print("\n=== Select Tracking Reference Point ===")
+        print("Choose which point of the bounding box to track:")
+        print("  1: Top-Left      2: Top-Center      3: Top-Right")
+        print("  4: Center-Left   5: Center          6: Center-Right")
+        print("  7: Bottom-Left   8: Bottom-Center   9: Bottom-Right")
+        print("\nPress the corresponding number key (default: 8 = Bottom-Center)")
+        print("Press ENTER to confirm")
+
+        while True:
+            display_frame = self.frame.copy()
+
+            # Draw bounding box
+            cv2.rectangle(display_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+            # Draw all reference points
+            for key, (name, calc_func) in self.REFERENCE_POINTS.items():
+                pt_x, pt_y = calc_func(x, y, w, h)
+                color = (0, 0, 255) if key == self.selected_key else (128, 128, 128)
+                size = 8 if key == self.selected_key else 4
+                cv2.circle(display_frame, (pt_x, pt_y), size, color, -1)
+                cv2.putText(display_frame, key, (pt_x + 10, pt_y + 5),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+            # Show selected point
+            cv2.putText(display_frame, f"Selected: {self.selected_point} ({self.selected_key})",
+                       (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            cv2.putText(display_frame, "Press ENTER to confirm",
+                       (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+            cv2.imshow("Select Reference Point", display_frame)
+            key = cv2.waitKey(1) & 0xFF
+
+            # Number key pressed
+            if chr(key) in self.REFERENCE_POINTS:
+                self.selected_key = chr(key)
+                self.selected_point = self.REFERENCE_POINTS[self.selected_key][0]
+
+            # Enter key - confirm
+            elif key == 13:
+                break
+
+        cv2.destroyAllWindows()
+        print(f"✓ Selected reference point: {self.selected_point}")
+
+        return self.selected_point, self.REFERENCE_POINTS[self.selected_key][1]
+
+
 class ObjectSelector:
     """UI for selecting an object to track."""
 
@@ -231,6 +312,8 @@ class ObjectTracker:
         self.position_data = []
         self.scale = None  # cm per pixel
         self.reference_length_cm = None
+        self.reference_point_name = None
+        self.reference_point_func = None
 
     def calibrate_scale(self, reference_length_cm: float = 100.0) -> bool:
         """Calibrate the scale using a reference object (e.g., meter stick).
@@ -267,6 +350,27 @@ class ObjectTracker:
         bbox = selector.select_roi(frame)
 
         return bbox
+
+    def select_reference_point(self, bbox: Tuple[int, int, int, int]) -> bool:
+        """Allow user to select which point on the bounding box to track.
+
+        Args:
+            bbox: Bounding box (x, y, w, h)
+
+        Returns:
+            True if selection successful, False otherwise
+        """
+        cap = cv2.VideoCapture(self.video_path)
+        ret, frame = cap.read()
+        cap.release()
+
+        if not ret:
+            raise ValueError("Could not read video file")
+
+        selector = ReferencePointSelector()
+        self.reference_point_name, self.reference_point_func = selector.select_reference_point(frame, bbox)
+
+        return self.reference_point_func is not None
 
     def track_object(self, initial_bbox: Tuple[int, int, int, int]):
         """Track the object through the video and create output with bounding boxes."""
@@ -306,27 +410,32 @@ class ObjectTracker:
                 # Draw bounding box
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-                # Calculate bottom-most pixel position
-                bottom_y = y + h
-                center_x = x + w // 2
+                # Calculate reference point position
+                if self.reference_point_func is not None:
+                    ref_x, ref_y = self.reference_point_func(x, y, w, h)
+                else:
+                    # Default to bottom-center
+                    ref_x = x + w // 2
+                    ref_y = y + h
 
                 # Store position data
                 timestamp = frame_number / fps if fps > 0 else 0
                 data_entry = {
                     "frame": frame_number,
                     "timestamp": round(timestamp, 3),
-                    "bottom_x_pixels": center_x,
-                    "bottom_y_pixels": bottom_y,
+                    "reference_point": self.reference_point_name or "bottom-center",
+                    "position_x_pixels": ref_x,
+                    "position_y_pixels": ref_y,
                     "bbox_pixels": {"x": x, "y": y, "w": w, "h": h}
                 }
 
                 # Add scaled measurements if calibration was performed
                 if self.scale is not None:
-                    bottom_x_cm = center_x * self.scale
-                    bottom_y_cm = bottom_y * self.scale
+                    pos_x_cm = ref_x * self.scale
+                    pos_y_cm = ref_y * self.scale
                     data_entry.update({
-                        "bottom_x_cm": round(bottom_x_cm, 3),
-                        "bottom_y_cm": round(bottom_y_cm, 3),
+                        "position_x_cm": round(pos_x_cm, 3),
+                        "position_y_cm": round(pos_y_cm, 3),
                         "bbox_cm": {
                             "x": round(x * self.scale, 3),
                             "y": round(y * self.scale, 3),
@@ -337,15 +446,17 @@ class ObjectTracker:
 
                 self.position_data.append(data_entry)
 
-                # Draw bottom point
-                cv2.circle(frame, (center_x, bottom_y), 5, (0, 0, 255), -1)
+                # Draw reference point
+                cv2.circle(frame, (ref_x, ref_y), 8, (0, 0, 255), -1)
+                cv2.circle(frame, (ref_x, ref_y), 3, (255, 255, 255), -1)
 
                 # Add position text
+                ref_name = self.reference_point_name or "bottom-center"
                 if self.scale is not None:
-                    cv2.putText(frame, f"Bottom: ({center_x}, {bottom_y}) px = ({round(center_x * self.scale, 1)}, {round(bottom_y * self.scale, 1)}) cm",
+                    cv2.putText(frame, f"{ref_name}: ({ref_x}, {ref_y}) px = ({round(ref_x * self.scale, 1)}, {round(ref_y * self.scale, 1)}) cm",
                                (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                 else:
-                    cv2.putText(frame, f"Bottom: ({center_x}, {bottom_y}) px",
+                    cv2.putText(frame, f"{ref_name}: ({ref_x}, {ref_y}) px",
                                (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
                 cv2.putText(frame, f"Frame: {frame_number}/{total_frames}",
@@ -416,6 +527,12 @@ class ObjectTracker:
             return
         step += 1
 
+        print(f"Step {step}: Select reference point on bounding box")
+        if not self.select_reference_point(initial_bbox):
+            print("Reference point selection failed. Exiting.")
+            return
+        step += 1
+
         print(f"Step {step}: Tracking object in video...")
         self.track_object(initial_bbox)
         step += 1
@@ -427,6 +544,7 @@ class ObjectTracker:
         print(f"✓ Done!")
         print(f"  Output video: {self.output_path}")
         print(f"  Total frames tracked: {len(self.position_data)}")
+        print(f"  Reference point: {self.reference_point_name}")
         if self.scale is not None:
             print(f"  Scale: {self.scale:.4f} cm/pixel")
         print(f"{'='*50}")
