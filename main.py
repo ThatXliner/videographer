@@ -118,49 +118,38 @@ class ObjectTracker:
 
     def track_object(self, initial_bbox: Tuple[int, int, int, int]):
         """Track the object through the video and create output with bounding boxes."""
-        video = Video(input_path=self.video_path, output_path=self.output_path)
-
-        # Initialize tracker with first detection
-        x, y, w, h = initial_bbox
-        initial_detection = Detection(
-            points=np.array([
-                [x + w/2, y + h/2],  # center
-                [x, y],              # top-left
-                [x + w, y + h]       # bottom-right
-            ])
-        )
-
-        # Use OpenCV tracker for detection
+        # Initialize OpenCV tracker
         cap = cv2.VideoCapture(self.video_path)
-        tracker_cv = cv2.TrackerCSRT_create()
-        ret, first_frame = cap.read()
-        tracker_cv.init(first_frame, initial_bbox)
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+        # Initialize video writer
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter(self.output_path, fourcc, fps, (width, height))
+
+        # Read first frame and initialize tracker
+        ret, frame = cap.read()
+        if not ret:
+            raise ValueError("Could not read first frame")
+
+        tracker = cv2.TrackerCSRT_create()
+        tracker.init(frame, initial_bbox)
 
         frame_number = 0
-        fps = cap.get(cv2.CAP_PROP_FPS)
+        print(f"\nTracking object through {total_frames} frames...")
 
-        for frame in video:
-            ret, success = cap.read()
+        while True:
+            ret, frame = cap.read()
             if not ret:
                 break
 
-            # Update OpenCV tracker
-            success, bbox = tracker_cv.update(success)
+            # Update tracker
+            success, bbox = tracker.update(frame)
 
             if success:
                 x, y, w, h = [int(v) for v in bbox]
-
-                # Create detection for Norfair
-                detection = Detection(
-                    points=np.array([
-                        [x + w/2, y + h/2],  # center
-                        [x, y],              # top-left
-                        [x + w, y + h]       # bottom-right
-                    ])
-                )
-
-                # Update Norfair tracker
-                tracked_objects = self.tracker.update(detections=[detection])
 
                 # Draw bounding box
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
@@ -170,10 +159,10 @@ class ObjectTracker:
                 center_x = x + w // 2
 
                 # Store position data
-                timestamp = frame_number / fps
+                timestamp = frame_number / fps if fps > 0 else 0
                 self.position_data.append({
                     "frame": frame_number,
-                    "timestamp": timestamp,
+                    "timestamp": round(timestamp, 3),
                     "bottom_x": center_x,
                     "bottom_y": bottom_y,
                     "bbox": {"x": x, "y": y, "w": w, "h": h}
@@ -185,12 +174,25 @@ class ObjectTracker:
                 # Add position text
                 cv2.putText(frame, f"Bottom: ({center_x}, {bottom_y})",
                            (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                cv2.putText(frame, f"Frame: {frame_number}/{total_frames}",
+                           (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            else:
+                # Tracking failed
+                cv2.putText(frame, "Tracking lost!",
+                           (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
+            # Write frame to output video
+            out.write(frame)
             frame_number += 1
-            video.write(frame)
+
+            # Progress indicator
+            if frame_number % 30 == 0:
+                progress = (frame_number / total_frames) * 100
+                print(f"Progress: {progress:.1f}% ({frame_number}/{total_frames} frames)")
 
         cap.release()
-        video.release()
+        out.release()
+        print(f"Tracking complete! Processed {frame_number} frames.")
 
     def save_position_data(self, output_file: str = "position_data.json"):
         """Save the position data to a JSON file."""
