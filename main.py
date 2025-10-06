@@ -113,7 +113,7 @@ class MeterStickCalibrator:
                 self.frame = temp_frame
 
     def _draw_measurement(self):
-        """Draw the final measurement line."""
+        """Draw the final measurement line with tick marks every 10cm."""
         self.frame = self.clone.copy()
         cv2.circle(self.frame, self.start_point, 5, (0, 255, 0), -1)
         cv2.circle(self.frame, self.end_point, 5, (0, 255, 0), -1)
@@ -123,6 +123,32 @@ class MeterStickCalibrator:
         dx = self.end_point[0] - self.start_point[0]
         dy = self.end_point[1] - self.start_point[1]
         distance = np.sqrt(dx**2 + dy**2)
+
+        # Draw tick marks every 10cm (assuming 100cm stick)
+        num_ticks = 11  # 0, 10, 20, ..., 100 cm
+        for i in range(num_ticks):
+            t = i / (num_ticks - 1)  # Parameter from 0 to 1
+
+            # Position along the line
+            tick_x = int(self.start_point[0] + t * dx)
+            tick_y = int(self.start_point[1] + t * dy)
+
+            # Perpendicular direction for tick mark
+            length = 10 if i % 2 == 0 else 5  # Longer tick every 20cm
+            perp_dx = -dy / distance * length
+            perp_dy = dx / distance * length
+
+            # Draw tick mark
+            tick_start = (int(tick_x - perp_dx), int(tick_y - perp_dy))
+            tick_end = (int(tick_x + perp_dx), int(tick_y + perp_dy))
+            cv2.line(self.frame, tick_start, tick_end, (0, 255, 255), 2)
+
+            # Draw label for major ticks
+            if i % 2 == 0:
+                label = f"{i * 10}"
+                cv2.putText(self.frame, label,
+                           (tick_x + 5, tick_y - 10),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 255), 1)
 
         # Draw distance text
         mid_x = (self.start_point[0] + self.end_point[0]) // 2
