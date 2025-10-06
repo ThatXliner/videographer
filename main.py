@@ -6,7 +6,7 @@ import json
 
 
 class MeterStickCalibrator:
-    """UI for calibrating scale using a meter stick."""
+    """UI for calibrating scale using a meter stick with adjustable tick marks."""
 
     def __init__(self):
         self.start_point = None
@@ -14,32 +14,37 @@ class MeterStickCalibrator:
         self.selecting = False
         self.frame = None
         self.clone = None
-        self.pixel_distance = None
+        self.tick_positions = []  # List of [x, y, cm_value]
+        self.selected_tick = None
+        self.dragging = False
+        self.stick_length_cm = 100.0
 
-    def calibrate(self, frame: np.ndarray, stick_length_cm: float = 100.0) -> Optional[float]:
-        """Display UI for user to mark the meter stick endpoints.
+    def calibrate(self, frame: np.ndarray, stick_length_cm: float = 100.0) -> Optional[dict]:
+        """Display UI for user to mark the meter stick endpoints and adjust ticks.
 
         Args:
             frame: Video frame containing the meter stick
             stick_length_cm: Length of the reference stick in centimeters (default 100 for meter stick)
 
         Returns:
-            Scale factor in cm/pixel, or None if cancelled
+            Dictionary with tick positions and calibration data, or None if cancelled
         """
         self.frame = frame.copy()
         self.clone = frame.copy()
         self.start_point = None
         self.end_point = None
         self.selecting = False
+        self.stick_length_cm = stick_length_cm
+        self.tick_positions = []
 
         cv2.namedWindow("Calibrate Scale - Mark Meter Stick")
         cv2.setMouseCallback("Calibrate Scale - Mark Meter Stick", self._mouse_callback)
 
-        print("\n=== Scale Calibration ===")
+        print("\n=== Scale Calibration - Step 1 ===")
         print(f"Reference length: {stick_length_cm} cm")
         print("1. Click at one end of the meter stick")
         print("2. Click at the other end of the meter stick")
-        print("3. Press ENTER to confirm")
+        print("3. Press ENTER to continue")
         print("4. Press 'r' to reset")
         print("5. Press ESC to cancel")
 
@@ -61,25 +66,28 @@ class MeterStickCalibrator:
                 self.end_point = None
                 self.selecting = False
 
+        # Initialize tick positions
+        self._initialize_tick_positions()
+
+        # Now allow tick adjustment
+        if not self._adjust_ticks():
+            cv2.destroyAllWindows()
+            return None
+
         cv2.destroyAllWindows()
 
-        # Calculate pixel distance
-        if self.start_point and self.end_point:
-            dx = self.end_point[0] - self.start_point[0]
-            dy = self.end_point[1] - self.start_point[1]
-            pixel_distance = np.sqrt(dx**2 + dy**2)
+        # Build calibration data
+        calibration_data = {
+            'tick_positions': self.tick_positions,
+            'start_point': self.start_point,
+            'end_point': self.end_point,
+            'stick_length_cm': stick_length_cm
+        }
 
-            # Calculate scale: cm per pixel
-            scale = stick_length_cm / pixel_distance
+        print(f"\n✓ Calibration complete!")
+        print(f"  Total tick marks: {len(self.tick_positions)}")
 
-            print(f"\n✓ Calibration complete!")
-            print(f"  Pixel distance: {pixel_distance:.2f} pixels")
-            print(f"  Scale: {scale:.4f} cm/pixel")
-            print(f"  Scale: {1/scale:.2f} pixels/cm")
-
-            return scale
-
-        return None
+        return calibration_data
 
     def _mouse_callback(self, event, x, y, flags, param):
         """Handle mouse events for meter stick marking."""
@@ -155,8 +163,123 @@ class MeterStickCalibrator:
         mid_y = (self.start_point[1] + self.end_point[1]) // 2
         cv2.putText(self.frame, f"{distance:.1f} pixels",
                    (mid_x + 10, mid_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-        cv2.putText(self.frame, "Press ENTER to confirm, 'r' to reset",
+        cv2.putText(self.frame, "Press ENTER to adjust ticks, 'r' to reset",
                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+    def _initialize_tick_positions(self):
+        """Initialize tick positions along the line."""
+        dx = self.end_point[0] - self.start_point[0]
+        dy = self.end_point[1] - self.start_point[1]
+
+        num_ticks = 11  # 0, 10, 20, ..., 100 cm
+        self.tick_positions = []
+        for i in range(num_ticks):
+            t = i / (num_ticks - 1)
+            tick_x = int(self.start_point[0] + t * dx)
+            tick_y = int(self.start_point[1] + t * dy)
+            cm_value = i * 10
+            self.tick_positions.append([tick_x, tick_y, cm_value])
+
+    def _adjust_ticks(self) -> bool:
+        """Allow user to adjust tick mark positions for lens distortion correction."""
+        print("\n=== Scale Calibration - Step 2: Adjust Tick Marks ===")
+        print("The tick marks are now displayed. Adjust them if needed:")
+        print("  - Click and drag any tick mark to adjust its position")
+        print("  - Press ENTER when satisfied")
+        print("  - Press ESC to cancel")
+
+        cv2.setMouseCallback("Calibrate Scale - Mark Meter Stick", self._tick_adjust_callback)
+
+        while True:
+            self._draw_adjustable_ticks()
+            cv2.imshow("Calibrate Scale - Mark Meter Stick", self.frame)
+            key = cv2.waitKey(1) & 0xFF
+
+            if key == 13:  # Enter - confirm
+                return True
+            elif key == 27:  # ESC - cancel
+                return False
+
+    def _draw_adjustable_ticks(self):
+        """Draw tick marks with adjustment handles."""
+        self.frame = self.clone.copy()
+        cv2.circle(self.frame, self.start_point, 5, (0, 255, 0), -1)
+        cv2.circle(self.frame, self.end_point, 5, (0, 255, 0), -1)
+
+        # Draw line connecting tick marks
+        for i in range(len(self.tick_positions) - 1):
+            pt1 = (self.tick_positions[i][0], self.tick_positions[i][1])
+            pt2 = (self.tick_positions[i + 1][0], self.tick_positions[i + 1][1])
+            cv2.line(self.frame, pt1, pt2, (0, 255, 0), 1)
+
+        # Draw each tick mark
+        for i, (tick_x, tick_y, cm_value) in enumerate(self.tick_positions):
+            # Calculate perpendicular direction
+            if i < len(self.tick_positions) - 1:
+                next_x, next_y, _ = self.tick_positions[i + 1]
+                dx_local = next_x - tick_x
+                dy_local = next_y - tick_y
+            elif i > 0:
+                prev_x, prev_y, _ = self.tick_positions[i - 1]
+                dx_local = tick_x - prev_x
+                dy_local = tick_y - prev_y
+            else:
+                dx_local = self.end_point[0] - self.start_point[0]
+                dy_local = self.end_point[1] - self.start_point[1]
+
+            local_dist = np.sqrt(dx_local**2 + dy_local**2)
+            if local_dist > 0:
+                length = 10 if i % 2 == 0 else 5
+                perp_dx = -dy_local / local_dist * length
+                perp_dy = dx_local / local_dist * length
+
+                # Draw tick mark
+                tick_start = (int(tick_x - perp_dx), int(tick_y - perp_dy))
+                tick_end = (int(tick_x + perp_dx), int(tick_y + perp_dy))
+
+                # Highlight selected tick
+                color = (255, 0, 255) if self.selected_tick == i else (0, 255, 255)
+                cv2.line(self.frame, tick_start, tick_end, color, 2)
+
+                # Draw draggable handle
+                handle_color = (255, 0, 255) if self.selected_tick == i else (0, 255, 255)
+                cv2.circle(self.frame, (tick_x, tick_y), 6, handle_color, -1)
+
+                # Draw label for major ticks
+                if i % 2 == 0:
+                    label = f"{int(cm_value)}"
+                    cv2.putText(self.frame, label,
+                               (tick_x + 5, tick_y - 10),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 255), 1)
+
+        cv2.putText(self.frame, "Drag tick marks to adjust for lens distortion. Press ENTER when done.",
+                   (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+    def _tick_adjust_callback(self, event, x, y, flags, param):
+        """Handle mouse events for tick adjustment."""
+        if event == cv2.EVENT_LBUTTONDOWN:
+            # Find closest tick mark
+            min_dist = float('inf')
+            closest_tick = None
+            for i, (tick_x, tick_y, _) in enumerate(self.tick_positions):
+                dist = np.sqrt((x - tick_x)**2 + (y - tick_y)**2)
+                if dist < min_dist and dist < 15:  # Within 15 pixels
+                    min_dist = dist
+                    closest_tick = i
+
+            if closest_tick is not None:
+                self.selected_tick = closest_tick
+                self.dragging = True
+
+        elif event == cv2.EVENT_MOUSEMOVE:
+            if self.dragging and self.selected_tick is not None:
+                # Update tick position
+                self.tick_positions[self.selected_tick][0] = x
+                self.tick_positions[self.selected_tick][1] = y
+
+        elif event == cv2.EVENT_LBUTTONUP:
+            self.dragging = False
+            self.selected_tick = None
 
 
 class ReferencePointSelector:
@@ -336,7 +459,7 @@ class ObjectTracker:
         self.video_path = video_path
         self.output_path = output_path
         self.position_data = []
-        self.scale = None  # cm per pixel
+        self.calibration_data = None  # Dict with tick positions
         self.reference_length_cm = None
         self.reference_point_name = None
         self.reference_point_func = None
@@ -358,10 +481,83 @@ class ObjectTracker:
             raise ValueError("Could not read video file")
 
         calibrator = MeterStickCalibrator()
-        self.scale = calibrator.calibrate(frame, reference_length_cm)
+        self.calibration_data = calibrator.calibrate(frame, reference_length_cm)
         self.reference_length_cm = reference_length_cm
 
-        return self.scale is not None
+        return self.calibration_data is not None
+
+    def _pixel_to_cm(self, px: float, py: float) -> Tuple[float, float]:
+        """Convert pixel coordinates to cm using calibration data.
+
+        Uses linear interpolation between tick marks to handle lens distortion.
+
+        Args:
+            px, py: Pixel coordinates
+
+        Returns:
+            Tuple of (x_cm, y_cm)
+        """
+        if self.calibration_data is None:
+            return None, None
+
+        tick_positions = self.calibration_data['tick_positions']
+
+        # Find the line segment along the ruler closest to the point
+        # For now, we'll use a simple projection onto the ruler line
+        # and interpolate based on that
+
+        # Calculate distances from point to each tick
+        min_dist = float('inf')
+        closest_segment = 0
+
+        for i in range(len(tick_positions) - 1):
+            x1, y1, cm1 = tick_positions[i]
+            x2, y2, cm2 = tick_positions[i + 1]
+
+            # Distance from point to line segment
+            # Project point onto line
+            dx = x2 - x1
+            dy = y2 - y1
+            if dx == 0 and dy == 0:
+                continue
+
+            t = max(0, min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))
+            proj_x = x1 + t * dx
+            proj_y = y1 + t * dy
+
+            dist = np.sqrt((px - proj_x)**2 + (py - proj_y)**2)
+            if dist < min_dist:
+                min_dist = dist
+                closest_segment = i
+
+        # Interpolate along the closest segment
+        x1, y1, cm1 = tick_positions[closest_segment]
+        x2, y2, cm2 = tick_positions[min(closest_segment + 1, len(tick_positions) - 1)]
+
+        dx = x2 - x1
+        dy = y2 - y1
+        segment_length_px = np.sqrt(dx**2 + dy**2)
+
+        if segment_length_px == 0:
+            return cm1, 0
+
+        # Project point onto segment to find position along ruler
+        t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)
+
+        # Interpolate cm value
+        cm_along_ruler = cm1 + t * (cm2 - cm1)
+
+        # For y-axis, use perpendicular distance
+        # Calculate local scale at this position
+        cm_per_pixel = abs(cm2 - cm1) / segment_length_px
+
+        # Calculate perpendicular distance from ruler line
+        perp_dist_px = min_dist
+
+        # Convert to cm
+        perp_dist_cm = perp_dist_px * cm_per_pixel
+
+        return cm_along_ruler, perp_dist_cm
 
     def select_object(self) -> Optional[Tuple[int, int, int, int]]:
         """Allow user to select object with mouse by drawing a bounding box."""
@@ -456,17 +652,19 @@ class ObjectTracker:
                 }
 
                 # Add scaled measurements if calibration was performed
-                if self.scale is not None:
-                    pos_x_cm = ref_x * self.scale
-                    pos_y_cm = ref_y * self.scale
+                if self.calibration_data is not None:
+                    pos_x_cm, pos_y_cm = self._pixel_to_cm(ref_x, ref_y)
+                    bbox_tl_x_cm, bbox_tl_y_cm = self._pixel_to_cm(x, y)
+                    bbox_br_x_cm, bbox_br_y_cm = self._pixel_to_cm(x + w, y + h)
+
                     data_entry.update({
-                        "position_x_cm": round(pos_x_cm, 3),
-                        "position_y_cm": round(pos_y_cm, 3),
+                        "position_x_cm": round(pos_x_cm, 3) if pos_x_cm is not None else None,
+                        "position_y_cm": round(pos_y_cm, 3) if pos_y_cm is not None else None,
                         "bbox_cm": {
-                            "x": round(x * self.scale, 3),
-                            "y": round(y * self.scale, 3),
-                            "w": round(w * self.scale, 3),
-                            "h": round(h * self.scale, 3)
+                            "x": round(bbox_tl_x_cm, 3) if bbox_tl_x_cm is not None else None,
+                            "y": round(bbox_tl_y_cm, 3) if bbox_tl_y_cm is not None else None,
+                            "w": round(bbox_br_x_cm - bbox_tl_x_cm, 3) if bbox_br_x_cm is not None and bbox_tl_x_cm is not None else None,
+                            "h": round(bbox_br_y_cm - bbox_tl_y_cm, 3) if bbox_br_y_cm is not None and bbox_tl_y_cm is not None else None
                         }
                     })
 
@@ -478,8 +676,9 @@ class ObjectTracker:
 
                 # Add position text
                 ref_name = self.reference_point_name or "bottom-center"
-                if self.scale is not None:
-                    cv2.putText(frame, f"{ref_name}: ({ref_x}, {ref_y}) px = ({round(ref_x * self.scale, 1)}, {round(ref_y * self.scale, 1)}) cm",
+                if self.calibration_data is not None:
+                    pos_x_cm, pos_y_cm = self._pixel_to_cm(ref_x, ref_y)
+                    cv2.putText(frame, f"{ref_name}: ({ref_x}, {ref_y}) px = ({round(pos_x_cm, 1)}, {round(pos_y_cm, 1)}) cm",
                                (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                 else:
                     cv2.putText(frame, f"{ref_name}: ({ref_x}, {ref_y}) px",
@@ -512,17 +711,18 @@ class ObjectTracker:
                 "video_path": self.video_path,
                 "output_path": self.output_path,
                 "total_frames": len(self.position_data),
-                "calibrated": self.scale is not None
+                "calibrated": self.calibration_data is not None,
+                "reference_point": self.reference_point_name
             },
             "tracking_data": self.position_data
         }
 
         # Add calibration info if available
-        if self.scale is not None:
+        if self.calibration_data is not None:
             output_data["metadata"]["calibration"] = {
-                "scale_cm_per_pixel": round(self.scale, 6),
-                "scale_pixels_per_cm": round(1/self.scale, 6),
-                "reference_length_cm": self.reference_length_cm
+                "reference_length_cm": self.reference_length_cm,
+                "tick_positions": self.calibration_data['tick_positions'],
+                "method": "non-linear interpolation with lens distortion correction"
             }
 
         with open(output_file, 'w') as f:
@@ -571,8 +771,9 @@ class ObjectTracker:
         print(f"  Output video: {self.output_path}")
         print(f"  Total frames tracked: {len(self.position_data)}")
         print(f"  Reference point: {self.reference_point_name}")
-        if self.scale is not None:
-            print(f"  Scale: {self.scale:.4f} cm/pixel")
+        if self.calibration_data is not None:
+            print(f"  Calibration: Non-linear (lens distortion corrected)")
+            print(f"  Reference length: {self.reference_length_cm} cm")
         print(f"{'='*50}")
 
 
