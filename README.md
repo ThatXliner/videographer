@@ -1,6 +1,7 @@
 # VideoGrapher
 
-> Note that this app so far is 100% written by AI.
+> [!NOTE]
+> This app so far is 100% written by AI. That being said, it works.
 
 A Python application for tracking objects in videos with precise position measurements. Features interactive calibration for lens distortion correction, customizable reference points, and exportable position data.
 
