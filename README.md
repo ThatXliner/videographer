@@ -68,13 +68,49 @@ pip install opencv-contrib-python>=4.8.0 norfair>=2.2.0 numpy>=1.24.0
 ### Basic Tracking
 
 ```bash
-python main.py <input_video_path> [output_video_path]
+# Using uv (recommended)
+uv run videographer <input_video_path> [options]
+
+# Or with python -m
+python -m videographer <input_video_path> [options]
+
+# After installation (uv sync)
+videographer <input_video_path> [options]
 ```
 
-**Example:**
+**Examples:**
 ```bash
-python main.py input.mp4 tracked_output.mp4
+# Note that all instances of `videographer` are interchangeable with `uv run videographer` or `python -m videographer`
+# Basic usage with default settings
+videographer input.mp4
+
+# Custom output path
+videographer input.mp4 -o tracked_output.mp4
+
+# Skip calibration (pixels only)
+videographer input.mp4 --no-calibration
+
+# Custom reference length (e.g., 50cm ruler)
+videographer input.mp4 --reference-length 50
+
+# Custom data output file
+videographer input.mp4 --output-data my_data.json
+
+# Get help
+videographer --help
 ```
+
+### Command Line Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `video_path` | Input video file (required) | - |
+| `-o, --output` | Output video file path | `output.mp4` |
+| `--no-calibration` | Skip scale calibration (pixels only) | Off |
+| `--reference-length` | Reference object length in cm | `100.0` |
+| `--output-data` | Output JSON data file path | `position_data.json` |
+| `-v, --version` | Show version | - |
+| `-h, --help` | Show help message | - |
 
 ### Workflow
 
@@ -315,11 +351,16 @@ Choose the most appropriate tracking point for your analysis:
 
 ```
 videographer/
-├── main.py              # Main tracking application
+├── videographer/        # Main package
+│   ├── __init__.py     # Package exports
+│   ├── __main__.py     # CLI entry point
+│   ├── calibration.py  # Scale calibration with tick marks
+│   ├── selectors.py    # Object and reference point selectors
+│   └── tracker.py      # Object tracking and data export
 ├── to_csv.py           # CSV export tool
 ├── position_data.json  # Generated tracking data (gitignored)
 ├── output.mp4          # Generated output video (gitignored)
-├── pyproject.toml      # Project dependencies
+├── pyproject.toml      # Project dependencies and scripts
 └── README.md           # This file
 ```
 

@@ -19,11 +19,20 @@ pip install opencv-contrib-python>=4.8.0 norfair>=2.2.0 numpy>=1.24.0
 
 ### Running the Application
 ```bash
-# Basic tracking workflow
-python main.py <input_video_path> [output_video_path]
+# Using uv (recommended)
+uv run videographer <input_video_path> [options]
 
-# Example
-python main.py input.mp4 tracked_output.mp4
+# Or with python -m
+python -m videographer <input_video_path> [options]
+
+# After installation
+videographer input.mp4 -o tracked_output.mp4
+
+# Skip calibration
+videographer input.mp4 --no-calibration
+
+# Custom reference length
+videographer input.mp4 --reference-length 50
 ```
 
 ### CSV Export
