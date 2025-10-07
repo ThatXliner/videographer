@@ -4,6 +4,33 @@
 
 A Python application for tracking objects in videos with precise position measurements. Features interactive calibration for lens distortion correction, customizable reference points, and exportable position data.
 
+## Citation
+
+If you use this software in your research or project, please cite it as:
+
+**BibTeX:**
+```bibtex
+@software{hu2025videographer,
+  author = {Hu, Bryan},
+  title = {VideoGrapher: Object Tracking with Lens Distortion Correction},
+  year = {2025},
+  url = {https://github.com/ThatXliner/videographer},
+  version = {0.1.0}
+}
+```
+
+**APA:**
+```
+Hu, B. (2025). VideoGrapher: Object Tracking with Lens Distortion Correction (Version 0.1.0) [Computer software]. https://github.com/ThatXliner/videographer
+```
+
+**MLA:**
+```
+Hu, Bryan. VideoGrapher: Object Tracking with Lens Distortion Correction. Version 0.1.0, 2025, https://github.com/ThatXliner/videographer.
+```
+
+See also: [CITATION.cff](CITATION.cff)
+
 ## Features
 
 ### 🎯 Object Tracking

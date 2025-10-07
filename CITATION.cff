@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: "Hu"
+    given-names: "Bryan"
+    alias: "ThatXliner"
+title: "VideoGrapher: Object Tracking with Lens Distortion Correction"
+version: 0.1.0
+date-released: 2025-10-06
+url: "https://github.com/ThatXliner/videographer"
+repository-code: "https://github.com/ThatXliner/videographer"
+license: MIT
+keywords:
+  - object-tracking
+  - computer-vision
+  - lens-distortion
+  - opencv
+  - video-analysis
+abstract: "A Python application for tracking objects in videos with precise position measurements. Features interactive calibration for lens distortion correction using piecewise linear interpolation, customizable reference points, and exportable position data."
