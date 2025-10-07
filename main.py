@@ -18,6 +18,7 @@ class MeterStickCalibrator:
         self.selected_tick = None
         self.dragging = False
         self.stick_length_cm = 100.0
+        self.needs_redraw = False
 
     def calibrate(self, frame: np.ndarray, stick_length_cm: float = 100.0) -> Optional[dict]:
         """Display UI for user to mark the meter stick endpoints and adjust ticks.
@@ -190,10 +191,19 @@ class MeterStickCalibrator:
 
         cv2.setMouseCallback("Calibrate Scale - Mark Meter Stick", self._tick_adjust_callback)
 
+        # Initial draw
+        self._draw_adjustable_ticks()
+        cv2.imshow("Calibrate Scale - Mark Meter Stick", self.frame)
+        self.needs_redraw = False
+
         while True:
-            self._draw_adjustable_ticks()
-            cv2.imshow("Calibrate Scale - Mark Meter Stick", self.frame)
-            key = cv2.waitKey(1) & 0xFF
+            # Only redraw if something changed
+            if self.needs_redraw:
+                self._draw_adjustable_ticks()
+                cv2.imshow("Calibrate Scale - Mark Meter Stick", self.frame)
+                self.needs_redraw = False
+
+            key = cv2.waitKey(10) & 0xFF
 
             if key == 13:  # Enter - confirm
                 return True
@@ -270,16 +280,20 @@ class MeterStickCalibrator:
             if closest_tick is not None:
                 self.selected_tick = closest_tick
                 self.dragging = True
+                self.needs_redraw = True
 
         elif event == cv2.EVENT_MOUSEMOVE:
             if self.dragging and self.selected_tick is not None:
                 # Update tick position
                 self.tick_positions[self.selected_tick][0] = x
                 self.tick_positions[self.selected_tick][1] = y
+                self.needs_redraw = True
 
         elif event == cv2.EVENT_LBUTTONUP:
-            self.dragging = False
-            self.selected_tick = None
+            if self.dragging:
+                self.dragging = False
+                self.selected_tick = None
+                self.needs_redraw = True
 
 
 class ReferencePointSelector:
