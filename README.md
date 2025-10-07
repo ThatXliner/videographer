@@ -15,7 +15,7 @@ A Python application for tracking objects in videos with precise position measur
 ### 📏 Scale Calibration
 - Interactive meter stick calibration with real-world measurements
 - **Adjustable tick marks** for lens distortion correction
-- Non-linear interpolation between tick marks for accurate measurements
+- Piecewise linear interpolation between tick marks for accurate measurements
 - Visual tick mark display (every 10cm with labels)
 
 ### 📊 Data Export
@@ -119,7 +119,7 @@ Comprehensive tracking data with metadata:
     "calibration": {
       "reference_length_cm": 100.0,
       "tick_positions": [[x1, y1, 0], [x2, y2, 10], ...],
-      "method": "non-linear interpolation with lens distortion correction"
+      "method": "piecewise linear interpolation with lens distortion correction"
     }
   },
   "tracking_data": [
@@ -218,16 +218,19 @@ This provides accurate measurements even with:
 - Barrel/pincushion distortion
 - Non-uniform scaling across the frame
 
-### Non-Linear Scale Calculation
+### How Distortion Correction Works
 
-The calibration system:
+The calibration system approximates lens distortion using **piecewise linear interpolation**:
+
 1. Stores adjusted positions for all 11 tick marks (0-100cm)
-2. For each tracked point, finds the closest ruler segment
+2. For each tracked point, finds the closest ruler segment (between two ticks)
 3. Projects the point onto that segment
-4. Interpolates the cm value based on local tick positions
-5. Calculates perpendicular distance using local scale
+4. Uses **linear interpolation** within that segment based on local tick positions
+5. Calculates perpendicular distance using the local scale (cm/pixel ratio)
 
-This approach handles variable scale across the frame caused by perspective or lens effects.
+**What this means:** The ruler is divided into 10 segments (0-10cm, 10-20cm, etc.). Each segment can have its own scale, allowing the system to approximate curved distortion by chaining together straight segments. More tick marks = better approximation of smooth nonlinear distortion.
+
+**Limitations:** This works well for moderate barrel/pincushion/fisheye distortion, but cannot capture rapid distortion changes within a 10cm segment. For extreme distortion, you'd need more tick marks or a parametric lens model.
 
 ### Customizable Reference Points
 

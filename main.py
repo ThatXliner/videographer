@@ -503,7 +503,8 @@ class ObjectTracker:
     def _pixel_to_cm(self, px: float, py: float) -> Tuple[float, float]:
         """Convert pixel coordinates to cm using calibration data.
 
-        Uses linear interpolation between tick marks to handle lens distortion.
+        Uses piecewise linear interpolation between tick marks to approximate lens distortion.
+        Each segment between tick marks has its own local scale (cm/pixel ratio).
 
         Args:
             px, py: Pixel coordinates
@@ -736,7 +737,7 @@ class ObjectTracker:
             output_data["metadata"]["calibration"] = {
                 "reference_length_cm": self.reference_length_cm,
                 "tick_positions": self.calibration_data['tick_positions'],
-                "method": "non-linear interpolation with lens distortion correction"
+                "method": "piecewise linear interpolation with lens distortion correction"
             }
 
         with open(output_file, 'w') as f:
@@ -786,7 +787,7 @@ class ObjectTracker:
         print(f"  Total frames tracked: {len(self.position_data)}")
         print(f"  Reference point: {self.reference_point_name}")
         if self.calibration_data is not None:
-            print(f"  Calibration: Non-linear (lens distortion corrected)")
+            print(f"  Calibration: Piecewise linear (lens distortion corrected)")
             print(f"  Reference length: {self.reference_length_cm} cm")
         print(f"{'='*50}")
 
