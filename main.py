@@ -632,6 +632,10 @@ class ObjectTracker:
 
         frame_number = 0
         print(f"\nTracking object through {total_frames} frames...")
+        print("Press 'q' to quit early")
+
+        # Create window for tracking display
+        cv2.namedWindow("Tracking Progress")
 
         while True:
             ret, frame = cap.read()
@@ -706,17 +710,51 @@ class ObjectTracker:
                 cv2.putText(frame, "Tracking lost!",
                            (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
+            # Draw progress bar at bottom of frame
+            progress_pct = frame_number / total_frames if total_frames > 0 else 0
+            bar_width = width - 20
+            bar_height = 30
+            bar_x = 10
+            bar_y = height - bar_height - 10
+
+            # Draw background (dark gray)
+            cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_width, bar_y + bar_height), (50, 50, 50), -1)
+
+            # Draw filled portion (green)
+            filled_width = int(bar_width * progress_pct)
+            if filled_width > 0:
+                cv2.rectangle(frame, (bar_x, bar_y), (bar_x + filled_width, bar_y + bar_height), (0, 255, 0), -1)
+
+            # Draw border
+            cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_width, bar_y + bar_height), (255, 255, 255), 2)
+
+            # Draw percentage text
+            progress_text = f"{progress_pct * 100:.1f}%"
+            text_size = cv2.getTextSize(progress_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)[0]
+            text_x = bar_x + (bar_width - text_size[0]) // 2
+            text_y = bar_y + (bar_height + text_size[1]) // 2
+            cv2.putText(frame, progress_text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+
+            # Display frame
+            cv2.imshow("Tracking Progress", frame)
+
+            # Check for quit key
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                print("\nTracking cancelled by user")
+                break
+
             # Write frame to output video
             out.write(frame)
             frame_number += 1
 
-            # Progress indicator
+            # Progress indicator (console)
             if frame_number % 30 == 0:
                 progress = (frame_number / total_frames) * 100
                 print(f"Progress: {progress:.1f}% ({frame_number}/{total_frames} frames)")
 
         cap.release()
         out.release()
+        cv2.destroyAllWindows()
         print(f"Tracking complete! Processed {frame_number} frames.")
 
     def save_position_data(self, output_file: str = "position_data.json"):
