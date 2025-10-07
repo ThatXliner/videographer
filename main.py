@@ -1,8 +1,10 @@
+import json
+
+# from norfair import Detection, Tracker, Video
+from typing import List, Optional, Tuple
+
 import cv2
 import numpy as np
-from norfair import Detection, Tracker, Video
-from typing import List, Tuple, Optional
-import json
 
 
 class MeterStickCalibrator:
@@ -20,7 +22,9 @@ class MeterStickCalibrator:
         self.stick_length_cm = 100.0
         self.needs_redraw = False
 
-    def calibrate(self, frame: np.ndarray, stick_length_cm: float = 100.0) -> Optional[dict]:
+    def calibrate(
+        self, frame: np.ndarray, stick_length_cm: float = 100.0
+    ) -> Optional[dict]:
         """Display UI for user to mark the meter stick endpoints and adjust ticks.
 
         Args:
@@ -54,14 +58,18 @@ class MeterStickCalibrator:
             key = cv2.waitKey(1) & 0xFF
 
             # Enter key - confirm selection
-            if key == 13 and self.start_point is not None and self.end_point is not None:
+            if (
+                key == 13
+                and self.start_point is not None
+                and self.end_point is not None
+            ):
                 break
             # ESC key - cancel
             elif key == 27:
                 cv2.destroyAllWindows()
                 return None
             # 'r' key - reset
-            elif key == ord('r'):
+            elif key == ord("r"):
                 self.frame = self.clone.copy()
                 self.start_point = None
                 self.end_point = None
@@ -79,10 +87,10 @@ class MeterStickCalibrator:
 
         # Build calibration data
         calibration_data = {
-            'tick_positions': self.tick_positions,
-            'start_point': self.start_point,
-            'end_point': self.end_point,
-            'stick_length_cm': stick_length_cm
+            "tick_positions": self.tick_positions,
+            "start_point": self.start_point,
+            "end_point": self.end_point,
+            "stick_length_cm": stick_length_cm,
         }
 
         print(f"\n✓ Calibration complete!")
@@ -98,8 +106,15 @@ class MeterStickCalibrator:
                 self.start_point = (x, y)
                 self.frame = self.clone.copy()
                 cv2.circle(self.frame, self.start_point, 5, (0, 255, 0), -1)
-                cv2.putText(self.frame, "Click at the other end",
-                           (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                cv2.putText(
+                    self.frame,
+                    "Click at the other end",
+                    (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (0, 255, 0),
+                    2,
+                )
             else:
                 # Second click - set end point
                 self.end_point = (x, y)
@@ -116,8 +131,15 @@ class MeterStickCalibrator:
                 dx = x - self.start_point[0]
                 dy = y - self.start_point[1]
                 distance = np.sqrt(dx**2 + dy**2)
-                cv2.putText(temp_frame, f"{distance:.1f} pixels",
-                           (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
+                cv2.putText(
+                    temp_frame,
+                    f"{distance:.1f} pixels",
+                    (10, 60),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (255, 255, 0),
+                    2,
+                )
 
                 self.frame = temp_frame
 
@@ -155,17 +177,37 @@ class MeterStickCalibrator:
             # Draw label for major ticks
             if i % 2 == 0:
                 label = f"{i * 10}"
-                cv2.putText(self.frame, label,
-                           (tick_x + 5, tick_y - 10),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 255), 1)
+                cv2.putText(
+                    self.frame,
+                    label,
+                    (tick_x + 5, tick_y - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.4,
+                    (0, 255, 255),
+                    1,
+                )
 
         # Draw distance text
         mid_x = (self.start_point[0] + self.end_point[0]) // 2
         mid_y = (self.start_point[1] + self.end_point[1]) // 2
-        cv2.putText(self.frame, f"{distance:.1f} pixels",
-                   (mid_x + 10, mid_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-        cv2.putText(self.frame, "Press ENTER to adjust ticks, 'r' to reset",
-                   (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+        cv2.putText(
+            self.frame,
+            f"{distance:.1f} pixels",
+            (mid_x + 10, mid_y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 255, 0),
+            2,
+        )
+        cv2.putText(
+            self.frame,
+            "Press ENTER to adjust ticks, 'r' to reset",
+            (10, 30),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 255, 0),
+            2,
+        )
 
     def _initialize_tick_positions(self):
         """Initialize tick positions along the line."""
@@ -189,7 +231,9 @@ class MeterStickCalibrator:
         print("  - Press ENTER when satisfied")
         print("  - Press ESC to cancel")
 
-        cv2.setMouseCallback("Calibrate Scale - Mark Meter Stick", self._tick_adjust_callback)
+        cv2.setMouseCallback(
+            "Calibrate Scale - Mark Meter Stick", self._tick_adjust_callback
+        )
 
         # Initial draw
         self._draw_adjustable_ticks()
@@ -252,27 +296,42 @@ class MeterStickCalibrator:
                 cv2.line(self.frame, tick_start, tick_end, color, 2)
 
                 # Draw draggable handle
-                handle_color = (255, 0, 255) if self.selected_tick == i else (0, 255, 255)
+                handle_color = (
+                    (255, 0, 255) if self.selected_tick == i else (0, 255, 255)
+                )
                 cv2.circle(self.frame, (tick_x, tick_y), 6, handle_color, -1)
 
                 # Draw label for major ticks
                 if i % 2 == 0:
                     label = f"{int(cm_value)}"
-                    cv2.putText(self.frame, label,
-                               (tick_x + 5, tick_y - 10),
-                               cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 255), 1)
+                    cv2.putText(
+                        self.frame,
+                        label,
+                        (tick_x + 5, tick_y - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.4,
+                        (0, 255, 255),
+                        1,
+                    )
 
-        cv2.putText(self.frame, "Drag tick marks to adjust for lens distortion. Press ENTER when done.",
-                   (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        cv2.putText(
+            self.frame,
+            "Drag tick marks to adjust for lens distortion. Press ENTER when done.",
+            (10, 30),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (0, 255, 0),
+            2,
+        )
 
     def _tick_adjust_callback(self, event, x, y, flags, param):
         """Handle mouse events for tick adjustment."""
         if event == cv2.EVENT_LBUTTONDOWN:
             # Find closest tick mark
-            min_dist = float('inf')
+            min_dist = float("inf")
             closest_tick = None
             for i, (tick_x, tick_y, _) in enumerate(self.tick_positions):
-                dist = np.sqrt((x - tick_x)**2 + (y - tick_y)**2)
+                dist = np.sqrt((x - tick_x) ** 2 + (y - tick_y) ** 2)
                 if dist < min_dist and dist < 15:  # Within 15 pixels
                     min_dist = dist
                     closest_tick = i
@@ -300,22 +359,24 @@ class ReferencePointSelector:
     """UI for selecting which point on the bounding box to track."""
 
     REFERENCE_POINTS = {
-        '1': ('top-left', lambda x, y, w, h: (x, y)),
-        '2': ('top-center', lambda x, y, w, h: (x + w // 2, y)),
-        '3': ('top-right', lambda x, y, w, h: (x + w, y)),
-        '4': ('center-left', lambda x, y, w, h: (x, y + h // 2)),
-        '5': ('center', lambda x, y, w, h: (x + w // 2, y + h // 2)),
-        '6': ('center-right', lambda x, y, w, h: (x + w, y + h // 2)),
-        '7': ('bottom-left', lambda x, y, w, h: (x, y + h)),
-        '8': ('bottom-center', lambda x, y, w, h: (x + w // 2, y + h)),
-        '9': ('bottom-right', lambda x, y, w, h: (x + w, y + h)),
+        "1": ("top-left", lambda x, y, w, h: (x, y)),
+        "2": ("top-center", lambda x, y, w, h: (x + w // 2, y)),
+        "3": ("top-right", lambda x, y, w, h: (x + w, y)),
+        "4": ("center-left", lambda x, y, w, h: (x, y + h // 2)),
+        "5": ("center", lambda x, y, w, h: (x + w // 2, y + h // 2)),
+        "6": ("center-right", lambda x, y, w, h: (x + w, y + h // 2)),
+        "7": ("bottom-left", lambda x, y, w, h: (x, y + h)),
+        "8": ("bottom-center", lambda x, y, w, h: (x + w // 2, y + h)),
+        "9": ("bottom-right", lambda x, y, w, h: (x + w, y + h)),
     }
 
     def __init__(self):
-        self.selected_point = 'bottom-center'  # Default
-        self.selected_key = '8'
+        self.selected_point = "bottom-center"  # Default
+        self.selected_key = "8"
 
-    def select_reference_point(self, frame: np.ndarray, bbox: Tuple[int, int, int, int]) -> Tuple[str, callable]:
+    def select_reference_point(
+        self, frame: np.ndarray, bbox: Tuple[int, int, int, int]
+    ) -> Tuple[str, callable]:
         """Display UI for selecting reference point on bounding box.
 
         Args:
@@ -350,14 +411,35 @@ class ReferencePointSelector:
                 color = (0, 0, 255) if key == self.selected_key else (128, 128, 128)
                 size = 8 if key == self.selected_key else 4
                 cv2.circle(display_frame, (pt_x, pt_y), size, color, -1)
-                cv2.putText(display_frame, key, (pt_x + 10, pt_y + 5),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                cv2.putText(
+                    display_frame,
+                    key,
+                    (pt_x + 10, pt_y + 5),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5,
+                    color,
+                    2,
+                )
 
             # Show selected point
-            cv2.putText(display_frame, f"Selected: {self.selected_point} ({self.selected_key})",
-                       (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-            cv2.putText(display_frame, "Press ENTER to confirm",
-                       (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            cv2.putText(
+                display_frame,
+                f"Selected: {self.selected_point} ({self.selected_key})",
+                (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.7,
+                (0, 255, 0),
+                2,
+            )
+            cv2.putText(
+                display_frame,
+                "Press ENTER to confirm",
+                (10, 60),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.7,
+                (0, 255, 0),
+                2,
+            )
 
             cv2.imshow("Select Reference Point", display_frame)
             key = cv2.waitKey(1) & 0xFF
@@ -418,7 +500,7 @@ class ObjectSelector:
                 self.bbox = None
                 break
             # 'r' key - reset
-            elif key == ord('r'):
+            elif key == ord("r"):
                 self.frame = self.clone.copy()
                 self.bbox = None
                 self.start_point = None
@@ -440,9 +522,18 @@ class ObjectSelector:
                 self.end_point = (x, y)
                 # Draw rectangle on temporary frame
                 self.frame = self.clone.copy()
-                cv2.rectangle(self.frame, self.start_point, self.end_point, (0, 255, 0), 2)
-                cv2.putText(self.frame, "Release mouse to set selection",
-                           (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                cv2.rectangle(
+                    self.frame, self.start_point, self.end_point, (0, 255, 0), 2
+                )
+                cv2.putText(
+                    self.frame,
+                    "Release mouse to set selection",
+                    (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (0, 255, 0),
+                    2,
+                )
 
         elif event == cv2.EVENT_LBUTTONUP:
             self.selecting = False
@@ -462,8 +553,15 @@ class ObjectSelector:
                 # Draw final rectangle
                 self.frame = self.clone.copy()
                 cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                cv2.putText(self.frame, "Press ENTER to confirm, 'r' to reset",
-                           (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                cv2.putText(
+                    self.frame,
+                    "Press ENTER to confirm, 'r' to reset",
+                    (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (0, 255, 0),
+                    2,
+                )
 
 
 class ObjectTracker:
@@ -515,14 +613,14 @@ class ObjectTracker:
         if self.calibration_data is None:
             return None, None
 
-        tick_positions = self.calibration_data['tick_positions']
+        tick_positions = self.calibration_data["tick_positions"]
 
         # Find the line segment along the ruler closest to the point
         # For now, we'll use a simple projection onto the ruler line
         # and interpolate based on that
 
         # Calculate distances from point to each tick
-        min_dist = float('inf')
+        min_dist = float("inf")
         closest_segment = 0
 
         for i in range(len(tick_positions) - 1):
@@ -540,7 +638,7 @@ class ObjectTracker:
             proj_x = x1 + t * dx
             proj_y = y1 + t * dy
 
-            dist = np.sqrt((px - proj_x)**2 + (py - proj_y)**2)
+            dist = np.sqrt((px - proj_x) ** 2 + (py - proj_y) ** 2)
             if dist < min_dist:
                 min_dist = dist
                 closest_segment = i
@@ -605,7 +703,9 @@ class ObjectTracker:
             raise ValueError("Could not read video file")
 
         selector = ReferencePointSelector()
-        self.reference_point_name, self.reference_point_func = selector.select_reference_point(frame, bbox)
+        self.reference_point_name, self.reference_point_func = (
+            selector.select_reference_point(frame, bbox)
+        )
 
         return self.reference_point_func is not None
 
@@ -619,7 +719,7 @@ class ObjectTracker:
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
         # Initialize video writer
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         out = cv2.VideoWriter(self.output_path, fourcc, fps, (width, height))
 
         # Read first frame and initialize tracker
@@ -667,7 +767,7 @@ class ObjectTracker:
                     "reference_point": self.reference_point_name or "bottom-center",
                     "position_x_pixels": ref_x,
                     "position_y_pixels": ref_y,
-                    "bbox_pixels": {"x": x, "y": y, "w": w, "h": h}
+                    "bbox_pixels": {"x": x, "y": y, "w": w, "h": h},
                 }
 
                 # Add scaled measurements if calibration was performed
@@ -676,16 +776,30 @@ class ObjectTracker:
                     bbox_tl_x_cm, bbox_tl_y_cm = self._pixel_to_cm(x, y)
                     bbox_br_x_cm, bbox_br_y_cm = self._pixel_to_cm(x + w, y + h)
 
-                    data_entry.update({
-                        "position_x_cm": round(pos_x_cm, 3) if pos_x_cm is not None else None,
-                        "position_y_cm": round(pos_y_cm, 3) if pos_y_cm is not None else None,
-                        "bbox_cm": {
-                            "x": round(bbox_tl_x_cm, 3) if bbox_tl_x_cm is not None else None,
-                            "y": round(bbox_tl_y_cm, 3) if bbox_tl_y_cm is not None else None,
-                            "w": round(bbox_br_x_cm - bbox_tl_x_cm, 3) if bbox_br_x_cm is not None and bbox_tl_x_cm is not None else None,
-                            "h": round(bbox_br_y_cm - bbox_tl_y_cm, 3) if bbox_br_y_cm is not None and bbox_tl_y_cm is not None else None
+                    data_entry.update(
+                        {
+                            "position_x_cm": round(pos_x_cm, 3)
+                            if pos_x_cm is not None
+                            else None,
+                            "position_y_cm": round(pos_y_cm, 3)
+                            if pos_y_cm is not None
+                            else None,
+                            "bbox_cm": {
+                                "x": round(bbox_tl_x_cm, 3)
+                                if bbox_tl_x_cm is not None
+                                else None,
+                                "y": round(bbox_tl_y_cm, 3)
+                                if bbox_tl_y_cm is not None
+                                else None,
+                                "w": round(bbox_br_x_cm - bbox_tl_x_cm, 3)
+                                if bbox_br_x_cm is not None and bbox_tl_x_cm is not None
+                                else None,
+                                "h": round(bbox_br_y_cm - bbox_tl_y_cm, 3)
+                                if bbox_br_y_cm is not None and bbox_tl_y_cm is not None
+                                else None,
+                            },
                         }
-                    })
+                    )
 
                 self.position_data.append(data_entry)
 
@@ -697,18 +811,46 @@ class ObjectTracker:
                 ref_name = self.reference_point_name or "bottom-center"
                 if self.calibration_data is not None:
                     pos_x_cm, pos_y_cm = self._pixel_to_cm(ref_x, ref_y)
-                    cv2.putText(frame, f"{ref_name}: ({ref_x}, {ref_y}) px = ({round(pos_x_cm, 1)}, {round(pos_y_cm, 1)}) cm",
-                               (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                    cv2.putText(
+                        frame,
+                        f"{ref_name}: ({ref_x}, {ref_y}) px = ({round(pos_x_cm, 1)}, {round(pos_y_cm, 1)}) cm",
+                        (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.6,
+                        (0, 255, 0),
+                        2,
+                    )
                 else:
-                    cv2.putText(frame, f"{ref_name}: ({ref_x}, {ref_y}) px",
-                               (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                    cv2.putText(
+                        frame,
+                        f"{ref_name}: ({ref_x}, {ref_y}) px",
+                        (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.7,
+                        (0, 255, 0),
+                        2,
+                    )
 
-                cv2.putText(frame, f"Frame: {frame_number}/{total_frames}",
-                           (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                cv2.putText(
+                    frame,
+                    f"Frame: {frame_number}/{total_frames}",
+                    (10, 60),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (0, 255, 0),
+                    2,
+                )
             else:
                 # Tracking failed
-                cv2.putText(frame, "Tracking lost!",
-                           (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                cv2.putText(
+                    frame,
+                    "Tracking lost!",
+                    (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (0, 0, 255),
+                    2,
+                )
 
             # Draw progress bar at bottom of frame
             progress_pct = frame_number / total_frames if total_frames > 0 else 0
@@ -718,28 +860,56 @@ class ObjectTracker:
             bar_y = height - bar_height - 10
 
             # Draw background (dark gray)
-            cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_width, bar_y + bar_height), (50, 50, 50), -1)
+            cv2.rectangle(
+                frame,
+                (bar_x, bar_y),
+                (bar_x + bar_width, bar_y + bar_height),
+                (50, 50, 50),
+                -1,
+            )
 
             # Draw filled portion (green)
             filled_width = int(bar_width * progress_pct)
             if filled_width > 0:
-                cv2.rectangle(frame, (bar_x, bar_y), (bar_x + filled_width, bar_y + bar_height), (0, 255, 0), -1)
+                cv2.rectangle(
+                    frame,
+                    (bar_x, bar_y),
+                    (bar_x + filled_width, bar_y + bar_height),
+                    (0, 255, 0),
+                    -1,
+                )
 
             # Draw border
-            cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_width, bar_y + bar_height), (255, 255, 255), 2)
+            cv2.rectangle(
+                frame,
+                (bar_x, bar_y),
+                (bar_x + bar_width, bar_y + bar_height),
+                (255, 255, 255),
+                2,
+            )
 
             # Draw percentage text
             progress_text = f"{progress_pct * 100:.1f}%"
-            text_size = cv2.getTextSize(progress_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)[0]
+            text_size = cv2.getTextSize(
+                progress_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2
+            )[0]
             text_x = bar_x + (bar_width - text_size[0]) // 2
             text_y = bar_y + (bar_height + text_size[1]) // 2
-            cv2.putText(frame, progress_text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+            cv2.putText(
+                frame,
+                progress_text,
+                (text_x, text_y),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (255, 255, 255),
+                2,
+            )
 
             # Display frame
             cv2.imshow("Tracking Progress", frame)
 
             # Check for quit key
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            if cv2.waitKey(1) & 0xFF == ord("q"):
                 print("\nTracking cancelled by user")
                 break
 
@@ -750,7 +920,9 @@ class ObjectTracker:
             # Progress indicator (console)
             if frame_number % 30 == 0:
                 progress = (frame_number / total_frames) * 100
-                print(f"Progress: {progress:.1f}% ({frame_number}/{total_frames} frames)")
+                print(
+                    f"Progress: {progress:.1f}% ({frame_number}/{total_frames} frames)"
+                )
 
         cap.release()
         out.release()
@@ -765,20 +937,20 @@ class ObjectTracker:
                 "output_path": self.output_path,
                 "total_frames": len(self.position_data),
                 "calibrated": self.calibration_data is not None,
-                "reference_point": self.reference_point_name
+                "reference_point": self.reference_point_name,
             },
-            "tracking_data": self.position_data
+            "tracking_data": self.position_data,
         }
 
         # Add calibration info if available
         if self.calibration_data is not None:
             output_data["metadata"]["calibration"] = {
                 "reference_length_cm": self.reference_length_cm,
-                "tick_positions": self.calibration_data['tick_positions'],
-                "method": "piecewise linear interpolation with lens distortion correction"
+                "tick_positions": self.calibration_data["tick_positions"],
+                "method": "piecewise linear interpolation with lens distortion correction",
             }
 
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             json.dump(output_data, f, indent=2)
         print(f"\n✓ Position data saved to {output_file}")
 
@@ -819,7 +991,7 @@ class ObjectTracker:
         print(f"Step {step}: Saving position data...")
         self.save_position_data()
 
-        print(f"\n{'='*50}")
+        print(f"\n{'=' * 50}")
         print(f"✓ Done!")
         print(f"  Output video: {self.output_path}")
         print(f"  Total frames tracked: {len(self.position_data)}")
@@ -827,7 +999,7 @@ class ObjectTracker:
         if self.calibration_data is not None:
             print(f"  Calibration: Piecewise linear (lens distortion corrected)")
             print(f"  Reference length: {self.reference_length_cm} cm")
-        print(f"{'='*50}")
+        print(f"{'=' * 50}")
 
 
 def main():

@@ -61,7 +61,7 @@ uv sync
 
 ### Using `pip`
 ```bash
-pip install opencv-contrib-python>=4.8.0 norfair>=2.2.0 numpy>=1.24.0
+pip install opencv-contrib-python>=4.8.0 numpy>=1.24.0
 ```
 
 ## Usage
@@ -297,7 +297,7 @@ Choose the most appropriate tracking point for your analysis:
 
 ### Dependencies
 - **opencv-contrib-python**: CSRT tracker and video I/O
-- **norfair**: Object tracking framework (currently used minimally)
+<!--- **norfair**: Object tracking framework (currently used minimally)-->
 - **numpy**: Numerical operations
 
 ### Tracking Algorithm
@@ -340,5 +340,5 @@ MIT License - feel free to use for research, education, or commercial projects.
 ## Acknowledgments
 
 - OpenCV for computer vision tools
-- Norfair for tracking framework
+<!--- Norfair for tracking framework-->
 - CSRT tracker algorithm by Lukežič et al.

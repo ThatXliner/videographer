@@ -14,7 +14,7 @@ Videographer is a Python application for tracking objects in videos with precise
 uv sync
 
 # Or using pip
-pip install opencv-contrib-python>=4.8.0 norfair>=2.2.0 numpy>=1.24.0
+pip install opencv-contrib-python>=4.8.0 numpy>=1.24.0
 ```
 
 ### Running the Application
