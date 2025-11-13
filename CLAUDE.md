@@ -65,7 +65,7 @@ python to_csv.py position_data.json -r bbox_bottom -a y -o 1.0 --header > output
 - **Rotation support** for vertical/rotated videos (0°, 90°, 180°, 270°)
 - OCR-based timestamp extraction using Tesseract
 - Supports formats: MM:SS.mmm, MM:SS, SS.mmm, SS
-- Image preprocessing (rotation → grayscale → histogram equalization → thresholding) for better OCR
+- Image preprocessing: rotation → grayscale (simplified to avoid harming OCR quality)
 - Regex-based parsing to convert text to seconds
 - **OCR validation with retry**: Tests OCR during calibration, shows raw text and parsed result
   - If parsing fails, prompts user to retry with adjusted region/rotation
@@ -209,12 +209,10 @@ python to_csv.py position_data.json -r bbox_bottom -a y -o 1.0 --header > output
 - Skips full tracking pipeline, focuses only on OCR testing
 - Interactive UI for timer region selection with rotation control
 - Press SPACE to run OCR and view all preprocessing steps
-- Shows 5 debug windows:
+- Shows 3 debug windows:
   1. Original ROI extracted from frame
   2. After rotation (if rotation ≠ 0)
-  3. Grayscale conversion
-  4. Histogram equalization
-  5. Binary threshold (actual input to Tesseract)
+  3. Grayscale conversion (final OCR input)
 - Console output shows raw OCR text, parsed timestamp, and troubleshooting tips
 - Allows rapid iteration: adjust region/rotation → SPACE → view results
 - Use case: diagnosing why timer OCR fails before running full tracking

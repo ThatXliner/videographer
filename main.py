@@ -635,19 +635,15 @@ class TimerCalibrator:
         elif rotation == 270:
             timer_roi = cv2.rotate(timer_roi, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
-        # Preprocess image for better OCR
+        # Preprocess image: just convert to grayscale
+        # Note: Removed adaptive thresholding as it can harm OCR quality
         gray = cv2.cvtColor(timer_roi, cv2.COLOR_BGR2GRAY)
-        # Apply adaptive threshold for better handling of varying lighting
-        # Using lower block size for finer detail preservation
-        thresh = cv2.adaptiveThreshold(
-            gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
-        )
 
         # Configure tesseract for digits and common time separators
         custom_config = r"--oem 3 --psm 7 -c tessedit_char_whitelist=0123456789:."
 
         try:
-            text = pytesseract.image_to_string(thresh, config=custom_config).strip()
+            text = pytesseract.image_to_string(gray, config=custom_config).strip()
 
             # Parse common time formats: MM:SS.mmm, SS.mmm, M:SS, etc.
             # Try to extract numbers and convert to seconds
@@ -989,25 +985,18 @@ def debug_timer_ocr(video_path: str):
 
             cv2.imshow("2. After Rotation", rotated)
 
-            # Step 3: Grayscale
+            # Step 3: Grayscale (final preprocessing step - OCR input)
             gray = cv2.cvtColor(rotated, cv2.COLOR_BGR2GRAY)
-            print("3. Converted to grayscale")
-            cv2.imshow("3. Grayscale", gray)
+            print("3. Converted to grayscale (OCR input)")
+            cv2.imshow("3. Grayscale (OCR Input)", gray)
 
-            # Step 4: Adaptive threshold
-            thresh = cv2.adaptiveThreshold(
-                gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
-            )
-            print("4. Applied adaptive threshold (block_size=11, C=2)")
-            cv2.imshow("4. Thresholded (OCR Input)", thresh)
-
-            # Step 6: Run OCR
-            print("\n6. Running Tesseract OCR...")
+            # Run OCR
+            print("\n4. Running Tesseract OCR...")
             custom_config = r"--oem 3 --psm 7 -c tessedit_char_whitelist=0123456789:."
 
             try:
                 raw_text = pytesseract.image_to_string(
-                    thresh, config=custom_config
+                    gray, config=custom_config
                 ).strip()
                 timestamp, _ = TimerCalibrator._ocr_timer(
                     timer_roi, calibrator.rotation, return_raw=True
@@ -1338,6 +1327,12 @@ class ObjectTracker:
         tracker = cv2.TrackerCSRT_create()
         tracker.init(frame, initial_bbox)
 
+        # Initialize timer tracker if timer is enabled
+        timer_tracker = None
+        if self.use_timer and self.timer_bbox is not None:
+            timer_tracker = cv2.TrackerCSRT_create()
+            timer_tracker.init(frame, self.timer_bbox)
+
         frame_number = 0
         timer_started = not self.use_timer  # If not using timer, consider it "started"
         skipped_frames = 0
@@ -1354,6 +1349,13 @@ class ObjectTracker:
             ret, frame = cap.read()
             if not ret:
                 break
+
+            # Update timer tracker if enabled
+            if timer_tracker is not None:
+                timer_success, timer_bbox_updated = timer_tracker.update(frame)
+                if timer_success:
+                    # Update timer bbox to tracked position
+                    self.timer_bbox = tuple(int(v) for v in timer_bbox_updated)
 
             # Check if timer has started (if using timer)
             if self.use_timer and not timer_started and self.timer_bbox is not None:
