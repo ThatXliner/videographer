@@ -9,8 +9,16 @@ import numpy as np
 
 try:
     import pytesseract
-    TESSERACT_AVAILABLE = True
+
+    PYTESSERACT_AVAILABLE = True
+    # Check if Tesseract binary is actually available
+    try:
+        pytesseract.get_tesseract_version()
+        TESSERACT_AVAILABLE = True
+    except Exception:
+        TESSERACT_AVAILABLE = False
 except ImportError:
+    PYTESSERACT_AVAILABLE = False
     TESSERACT_AVAILABLE = False
 
 
@@ -50,7 +58,9 @@ class MeterStickCalibrator:
         self.tick_positions = []
 
         cv2.namedWindow("Calibrate Scale - Mark Reference Stick")
-        cv2.setMouseCallback("Calibrate Scale - Mark Reference Stick", self._mouse_callback)
+        cv2.setMouseCallback(
+            "Calibrate Scale - Mark Reference Stick", self._mouse_callback
+        )
 
         print("\n=== Scale Calibration - Step 1 ===")
         print(f"Reference length: {stick_length_cm} cm")
@@ -163,7 +173,9 @@ class MeterStickCalibrator:
         distance = np.sqrt(dx**2 + dy**2)
 
         # Draw tick marks every 10cm up to stick length
-        num_ticks = int(self.stick_length_cm / 10) + 1  # e.g., 11 ticks for 100cm (0, 10, ..., 100)
+        num_ticks = (
+            int(self.stick_length_cm / 10) + 1
+        )  # e.g., 11 ticks for 100cm (0, 10, ..., 100)
         for i in range(num_ticks):
             t = i / (num_ticks - 1)  # Parameter from 0 to 1
 
@@ -221,7 +233,9 @@ class MeterStickCalibrator:
         dx = self.end_point[0] - self.start_point[0]
         dy = self.end_point[1] - self.start_point[1]
 
-        num_ticks = int(self.stick_length_cm / 10) + 1  # e.g., 11 ticks for 100cm (0, 10, ..., 100)
+        num_ticks = (
+            int(self.stick_length_cm / 10) + 1
+        )  # e.g., 11 ticks for 100cm (0, 10, ..., 100)
         self.tick_positions = []
         for i in range(num_ticks):
             t = i / (num_ticks - 1)
@@ -374,7 +388,9 @@ class TimerCalibrator:
         self.clone = None
         self.rotation = 0  # Rotation angle: 0, 90, 180, or 270
 
-    def calibrate(self, frame: np.ndarray) -> Optional[Tuple[Tuple[int, int, int, int], int]]:
+    def calibrate(
+        self, frame: np.ndarray
+    ) -> Optional[Tuple[Tuple[int, int, int, int], int]]:
         """Display UI for user to select the timer display region.
 
         Args:
@@ -384,10 +400,24 @@ class TimerCalibrator:
             Tuple of (bbox, rotation) where bbox is (x, y, w, h) and rotation is 0/90/180/270,
             or None if cancelled
         """
-        if not TESSERACT_AVAILABLE:
-            print("\n⚠️  pytesseract not available. Timer feature disabled.")
+        if not PYTESSERACT_AVAILABLE:
+            print(
+                "\n⚠️  pytesseract Python package not installed. Timer feature disabled."
+            )
             print("Install with: pip install pytesseract")
-            print("Also ensure Tesseract OCR is installed on your system.")
+            return None
+
+        if not TESSERACT_AVAILABLE:
+            print("\n⚠️  Tesseract OCR engine not found. Timer feature disabled.")
+            print(
+                "pytesseract is installed, but the Tesseract binary is not available."
+            )
+            print("\nInstall Tesseract:")
+            print("  macOS:    brew install tesseract")
+            print("  Ubuntu:   sudo apt-get install tesseract-ocr")
+            print(
+                "  Windows:  Download from https://github.com/tesseract-ocr/tesseract/wiki"
+            )
             return None
 
         self.frame = frame.copy()
@@ -428,14 +458,58 @@ class TimerCalibrator:
             if key == 13 and self.bbox is not None:
                 # Test OCR on selected region with rotation
                 x, y, w, h = self.bbox
-                timer_roi = self.clone[y:y+h, x:x+w]
-                test_text = self._ocr_timer(timer_roi, self.rotation)
+                timer_roi = self.clone[y : y + h, x : x + w]
+                test_timestamp, raw_text = self._ocr_timer(
+                    timer_roi, self.rotation, return_raw=True
+                )
 
-                print(f"\n✓ Timer region selected")
+                print(f"\n--- Timer OCR Test ---")
                 print(f"  Rotation: {self.rotation}°")
-                print(f"  Test OCR result: '{test_text}'")
-                print("  (Make sure the timer digits are readable)")
-                break
+                print(f"  Raw OCR text: '{raw_text}'")
+                print(
+                    f"  Parsed timestamp: {test_timestamp}s"
+                    if test_timestamp is not None
+                    else "  Parsed timestamp: FAILED"
+                )
+
+                if test_timestamp is None:
+                    print("\n⚠️  OCR test failed! The timer could not be read.")
+                    print("  Possible issues:")
+                    print("    - Timer region is too small or blurry")
+                    print("    - Wrong rotation angle selected")
+                    print("    - Poor contrast or unusual font")
+                    print("    - Timer not visible in first frame")
+                    print("\n  Press 'r' to reset and try again")
+                    print("  Press ENTER again to continue anyway (not recommended)")
+                    print("  Press ESC to skip timer tracking")
+
+                    # Wait for user decision
+                    while True:
+                        retry_key = cv2.waitKey(0) & 0xFF
+                        if retry_key == ord("r"):
+                            # Reset and retry
+                            self.frame = self.clone.copy()
+                            self.bbox = None
+                            self.start_point = None
+                            self.end_point = None
+                            self.selecting = False
+                            self.rotation = 0
+                            print("\n  Resetting timer selection...")
+                            break
+                        elif retry_key == 13:
+                            # Continue anyway
+                            print(
+                                "\n⚠️  Continuing with failed OCR (tracking may not work properly)"
+                            )
+                            cv2.destroyAllWindows()
+                            return (self.bbox, self.rotation)
+                        elif retry_key == 27:
+                            # Cancel
+                            cv2.destroyAllWindows()
+                            return None
+                else:
+                    print("  ✓ OCR test passed!")
+                    break
             # ESC key - cancel
             elif key == 27:
                 self.bbox = None
@@ -515,18 +589,22 @@ class TimerCalibrator:
                 )
 
     @staticmethod
-    def _ocr_timer(timer_roi: np.ndarray, rotation: int = 0) -> Optional[float]:
+    def _ocr_timer(
+        timer_roi: np.ndarray, rotation: int = 0, return_raw: bool = False
+    ) -> Optional[float]:
         """Extract timestamp from timer region using OCR.
 
         Args:
             timer_roi: Cropped image of timer display
             rotation: Rotation angle (0, 90, 180, or 270 degrees)
+            return_raw: If True, returns tuple of (timestamp, raw_text) instead of just timestamp
 
         Returns:
             Timestamp in seconds, or None if parsing failed
+            If return_raw=True, returns (timestamp, raw_text) tuple
         """
         if not TESSERACT_AVAILABLE:
-            return None
+            return (None, "") if return_raw else None
 
         # Apply rotation if needed
         if rotation == 90:
@@ -544,7 +622,7 @@ class TimerCalibrator:
         _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
         # Configure tesseract for digits and common time separators
-        custom_config = r'--oem 3 --psm 7 -c tessedit_char_whitelist=0123456789:.'
+        custom_config = r"--oem 3 --psm 7 -c tessedit_char_whitelist=0123456789:."
 
         try:
             text = pytesseract.image_to_string(thresh, config=custom_config).strip()
@@ -553,7 +631,7 @@ class TimerCalibrator:
             # Try to extract numbers and convert to seconds
 
             # Format: MM:SS.mmm or MM:SS
-            match = re.match(r'(\d+):(\d+)\.?(\d*)', text)
+            match = re.match(r"(\d+):(\d+)\.?(\d*)", text)
             if match:
                 minutes = int(match.group(1))
                 seconds = int(match.group(2))
@@ -565,10 +643,11 @@ class TimerCalibrator:
                     milliseconds = milliseconds * 10
                 elif len(match.group(3)) == 1:
                     milliseconds = milliseconds * 100
-                return minutes * 60 + seconds + milliseconds / 1000.0
+                timestamp = minutes * 60 + seconds + milliseconds / 1000.0
+                return (timestamp, text) if return_raw else timestamp
 
             # Format: SS.mmm or SS
-            match = re.match(r'(\d+)\.?(\d*)', text)
+            match = re.match(r"(\d+)\.?(\d*)", text)
             if match:
                 seconds = int(match.group(1))
                 milliseconds = int(match.group(2)) if match.group(2) else 0
@@ -579,13 +658,14 @@ class TimerCalibrator:
                     milliseconds = milliseconds * 10
                 elif len(match.group(2)) == 1:
                     milliseconds = milliseconds * 100
-                return seconds + milliseconds / 1000.0
+                timestamp = seconds + milliseconds / 1000.0
+                return (timestamp, text) if return_raw else timestamp
 
-            return None
+            return (None, text) if return_raw else None
 
         except Exception as e:
             # OCR failed
-            return None
+            return (None, "") if return_raw else None
 
 
 class ReferencePointSelector:
@@ -1007,18 +1087,24 @@ class ObjectTracker:
             # Check if timer has started (if using timer)
             if self.use_timer and not timer_started and self.timer_bbox is not None:
                 tx, ty, tw, th = self.timer_bbox
-                timer_roi = frame[ty:ty+th, tx:tx+tw]
-                ocr_timestamp = TimerCalibrator._ocr_timer(timer_roi, self.timer_rotation)
+                timer_roi = frame[ty : ty + th, tx : tx + tw]
+                ocr_timestamp = TimerCalibrator._ocr_timer(
+                    timer_roi, self.timer_rotation
+                )
 
                 if ocr_timestamp is not None and ocr_timestamp > 0:
                     timer_started = True
-                    print(f"\n✓ Timer started at frame {frame_number} (t={ocr_timestamp:.3f}s)")
+                    print(
+                        f"\n✓ Timer started at frame {frame_number} (t={ocr_timestamp:.3f}s)"
+                    )
                 else:
                     # Skip this frame - timer hasn't started
                     skipped_frames += 1
                     frame_number += 1
                     if frame_number % 100 == 0:
-                        print(f"Waiting for timer to start... (skipped {skipped_frames} frames)")
+                        print(
+                            f"Waiting for timer to start... (skipped {skipped_frames} frames)"
+                        )
                     continue
 
             # Update tracker
@@ -1052,8 +1138,10 @@ class ObjectTracker:
                 # Extract OCR timestamp if timer tracking is enabled
                 if self.use_timer and self.timer_bbox is not None:
                     tx, ty, tw, th = self.timer_bbox
-                    timer_roi = frame[ty:ty+th, tx:tx+tw]
-                    ocr_timestamp = TimerCalibrator._ocr_timer(timer_roi, self.timer_rotation)
+                    timer_roi = frame[ty : ty + th, tx : tx + tw]
+                    ocr_timestamp = TimerCalibrator._ocr_timer(
+                        timer_roi, self.timer_rotation
+                    )
                     if ocr_timestamp is not None:
                         data_entry["timestamp_ocr"] = round(ocr_timestamp, 3)
 
@@ -1262,7 +1350,12 @@ class ObjectTracker:
             json.dump(output_data, f, indent=2)
         print(f"\n✓ Position data saved to {output_file}")
 
-    def run(self, calibrate: bool = True, reference_length_cm: float = 100.0, use_timer: bool = False):
+    def run(
+        self,
+        calibrate: bool = True,
+        reference_length_cm: float = 100.0,
+        use_timer: bool = False,
+    ):
         """Run the complete tracking pipeline.
 
         Args:

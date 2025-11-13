@@ -58,15 +58,19 @@ python to_csv.py position_data.json -r bbox_bottom -a y -o 1.0 --header > output
 
 ### Core Components
 
-**TimerCalibrator** (main.py:365-594)
+**TimerCalibrator** (main.py:365-636)
 - Interactive UI for selecting on-screen timer region with bounding box
 - **Rotation support** for vertical/rotated videos (0°, 90°, 180°, 270°)
 - OCR-based timestamp extraction using Tesseract
 - Supports formats: MM:SS.mmm, MM:SS, SS.mmm, SS
 - Image preprocessing (rotation → grayscale → histogram equalization → thresholding) for better OCR
 - Regex-based parsing to convert text to seconds
-- Validates OCR during calibration with test read
+- **OCR validation with retry**: Tests OCR during calibration, shows raw text and parsed result
+  - If parsing fails, prompts user to retry with adjusted region/rotation
+  - Prevents proceeding with misconfigured timer
+  - User can force continue, retry, or cancel
 - Interactive rotation adjustment with keyboard shortcuts (0/9/1/2 keys)
+- `_ocr_timer` method supports `return_raw` parameter for debugging
 
 **ObjectTracker** (main.py:764-1252)
 - Main orchestrator class that runs the complete tracking pipeline

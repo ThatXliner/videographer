@@ -131,9 +131,13 @@ If you're using the `--use-timer` flag to extract timestamps from an on-screen t
    - Press **'9'** for 90° clockwise
    - Press **'1'** for 180°
    - Press **'2'** for 270° (90° counter-clockwise)
-3. Press **ENTER** to confirm (a test OCR result will be shown)
-4. Press **'r'** to reset if needed
-5. Press **ESC** to skip timer tracking
+3. Press **ENTER** to test OCR
+   - Shows **raw OCR text** and **parsed timestamp**
+   - If OCR fails, you'll be prompted to retry with options:
+     - Press **'r'** to reset and adjust the region/rotation
+     - Press **ENTER** again to continue anyway (not recommended)
+     - Press **ESC** to skip timer tracking
+4. Once OCR passes, timer calibration is complete
 
 The timer region will be highlighted with a **cyan box** in the output video.
 
@@ -150,7 +154,10 @@ The timer region will be highlighted with a **cyan box** in the output video.
 - Draw the box tightly around just the timer digits
 - Use a high-quality video with readable digits
 - **Set the correct rotation** for rotated videos (especially vertical videos)
-- Test the OCR result shown during calibration - if it's incorrect, try adjusting rotation
+- Check the **raw OCR text** output during calibration - it helps diagnose issues:
+  - If raw text is gibberish → try different rotation
+  - If raw text is close but parsing fails → timer format may not be supported
+  - If raw text is empty → region may be too small or contrast too low
 
 #### **Step 3: Select Object**
 
@@ -340,9 +347,12 @@ The `--use-timer` flag enables extraction of timestamps directly from an on-scre
 **How it works:**
 1. During calibration, you select the timer region by drawing a box around it
 2. Optionally set rotation (0°, 90°, 180°, 270°) for rotated videos
-3. Each frame, the timer region is extracted, rotated if needed, and preprocessed (contrast enhancement, thresholding)
-4. Tesseract OCR extracts the digits
-5. The timestamp is parsed and stored as `timestamp_ocr` in the JSON output
+3. **OCR validation**: Test OCR on first frame, showing both raw text and parsed result
+   - If parsing fails, you're prompted to retry with adjusted region/rotation
+   - Prevents proceeding with misconfigured timer detection
+4. Each frame, the timer region is extracted, rotated if needed, and preprocessed (contrast enhancement, thresholding)
+5. Tesseract OCR extracts the digits
+6. The timestamp is parsed and stored as `timestamp_ocr` in the JSON output
 
 **Rotation Feature:**
 - Essential for vertical videos that get rotated during processing
