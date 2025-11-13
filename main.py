@@ -916,7 +916,7 @@ def debug_timer_ocr(video_path: str):
     print("  2. Press '0', '9', '1', or '2' to set rotation (0°, 90°, 180°, 270°)")
     print("  3. Press SPACE to run OCR and see debug visualization")
     print("  4. Press 'r' to reset and try a different region")
-    print("  5. Press ESC to exit")
+    print("  5. Press 'q' or ESC to exit")
     print("="*70 + "\n")
 
     # Use TimerCalibrator UI for selection
@@ -933,11 +933,15 @@ def debug_timer_ocr(video_path: str):
     cv2.setMouseCallback("Debug Timer OCR - Select Region", calibrator._mouse_callback)
 
     while True:
-        # Always start fresh to avoid text overlap
+        # Redraw frame
         display_frame = calibrator.clone.copy()
 
-        # Redraw bbox if it exists
-        if calibrator.bbox is not None:
+        # Draw current selection or bbox
+        if calibrator.selecting and calibrator.start_point and calibrator.end_point:
+            # Show live selection rectangle
+            cv2.rectangle(display_frame, calibrator.start_point, calibrator.end_point, (0, 255, 255), 2)
+        elif calibrator.bbox is not None:
+            # Show finalized bbox
             x, y, w, h = calibrator.bbox
             cv2.rectangle(display_frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
             cv2.putText(
@@ -951,7 +955,7 @@ def debug_timer_ocr(video_path: str):
             )
 
         cv2.imshow("Debug Timer OCR - Select Region", display_frame)
-        key = cv2.waitKey(1) & 0xFF
+        key = cv2.waitKey(20) & 0xFF  # 20ms = ~50fps, smooth enough
 
         # SPACE key - run OCR debug
         if key == 32 and calibrator.bbox is not None:  # Space bar
