@@ -31,12 +31,14 @@ python main.py input.mp4 tracked_output.mp4
 python main.py input.mp4 tracked_output.mp4 --stick-length 30  # Use 30cm ruler
 python main.py input.mp4 tracked_output.mp4 --no-calibrate     # Skip calibration
 python main.py input.mp4 tracked_output.mp4 --use-timer        # Extract timestamps from on-screen timer
+python main.py input.mp4 --debug-timer                         # Debug timer OCR
 ```
 
 ### Command-line Options
 - `--stick-length LENGTH`: Length of reference stick in centimeters (default: 100.0)
 - `--no-calibrate`: Skip calibration step (track in pixels only)
 - `--use-timer`: Extract timestamps from on-screen timer using OCR (requires pytesseract)
+- `--debug-timer`: Debug mode for timer OCR (shows preprocessing steps, skips tracking)
 
 ### CSV Export
 ```bash
@@ -200,3 +202,19 @@ python to_csv.py position_data.json -r bbox_bottom -a y -o 1.0 --header > output
 - Prints progress messages every 100 skipped frames
 - Final report includes total number of skipped frames
 - Use case: lab recordings where timer is visible but not started initially
+
+### Timer OCR Debug Mode
+**Function**: `debug_timer_ocr()` (main.py:880-1062)
+- Standalone debug mode activated with `--debug-timer` flag
+- Skips full tracking pipeline, focuses only on OCR testing
+- Interactive UI for timer region selection with rotation control
+- Press SPACE to run OCR and view all preprocessing steps
+- Shows 5 debug windows:
+  1. Original ROI extracted from frame
+  2. After rotation (if rotation ≠ 0)
+  3. Grayscale conversion
+  4. Histogram equalization
+  5. Binary threshold (actual input to Tesseract)
+- Console output shows raw OCR text, parsed timestamp, and troubleshooting tips
+- Allows rapid iteration: adjust region/rotation → SPACE → view results
+- Use case: diagnosing why timer OCR fails before running full tracking

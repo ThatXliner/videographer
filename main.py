@@ -616,10 +616,11 @@ class TimerCalibrator:
 
         # Preprocess image for better OCR
         gray = cv2.cvtColor(timer_roi, cv2.COLOR_BGR2GRAY)
-        # Increase contrast
-        gray = cv2.equalizeHist(gray)
-        # Apply threshold to get black text on white background
-        _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        # Apply adaptive threshold for better handling of varying lighting
+        # Using lower block size for finer detail preservation
+        thresh = cv2.adaptiveThreshold(
+            gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+        )
 
         # Configure tesseract for digits and common time separators
         custom_config = r"--oem 3 --psm 7 -c tessedit_char_whitelist=0123456789:."
@@ -875,6 +876,193 @@ class ObjectSelector:
                     (0, 255, 0),
                     2,
                 )
+
+
+def debug_timer_ocr(video_path: str):
+    """Interactive debug mode for testing timer OCR without running full pipeline.
+
+    Args:
+        video_path: Path to video file
+    """
+    if not PYTESSERACT_AVAILABLE:
+        print("\n⚠️  pytesseract Python package not installed.")
+        print("Install with: pip install pytesseract")
+        return
+
+    if not TESSERACT_AVAILABLE:
+        print("\n⚠️  Tesseract OCR engine not found.")
+        print("pytesseract is installed, but the Tesseract binary is not available.")
+        print("\nInstall Tesseract:")
+        print("  macOS:    brew install tesseract")
+        print("  Ubuntu:   sudo apt-get install tesseract-ocr")
+        print("  Windows:  Download from https://github.com/tesseract-ocr/tesseract/wiki")
+        return
+
+    # Open video and get first frame
+    cap = cv2.VideoCapture(video_path)
+    ret, frame = cap.read()
+    cap.release()
+
+    if not ret:
+        print(f"❌ Could not read video file: {video_path}")
+        return
+
+    print("\n" + "="*70)
+    print("🔍 TIMER OCR DEBUG MODE")
+    print("="*70)
+    print("\nThis mode helps diagnose timer OCR issues by showing preprocessing steps.")
+    print("\nInstructions:")
+    print("  1. Draw a box around the timer display")
+    print("  2. Press '0', '9', '1', or '2' to set rotation (0°, 90°, 180°, 270°)")
+    print("  3. Press SPACE to run OCR and see debug visualization")
+    print("  4. Press 'r' to reset and try a different region")
+    print("  5. Press ESC to exit")
+    print("="*70 + "\n")
+
+    # Use TimerCalibrator UI for selection
+    calibrator = TimerCalibrator()
+    calibrator.frame = frame.copy()
+    calibrator.clone = frame.copy()
+    calibrator.bbox = None
+    calibrator.start_point = None
+    calibrator.end_point = None
+    calibrator.selecting = False
+    calibrator.rotation = 0
+
+    cv2.namedWindow("Debug Timer OCR - Select Region")
+    cv2.setMouseCallback("Debug Timer OCR - Select Region", calibrator._mouse_callback)
+
+    while True:
+        # Always start fresh to avoid text overlap
+        display_frame = calibrator.clone.copy()
+
+        # Redraw bbox if it exists
+        if calibrator.bbox is not None:
+            x, y, w, h = calibrator.bbox
+            cv2.rectangle(display_frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
+            cv2.putText(
+                display_frame,
+                f"Rotation: {calibrator.rotation}° (0/9/1/2 to change) | SPACE to test",
+                (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (0, 255, 255),
+                2,
+            )
+
+        cv2.imshow("Debug Timer OCR - Select Region", display_frame)
+        key = cv2.waitKey(1) & 0xFF
+
+        # SPACE key - run OCR debug
+        if key == 32 and calibrator.bbox is not None:  # Space bar
+            x, y, w, h = calibrator.bbox
+            timer_roi = calibrator.clone[y:y+h, x:x+w]
+
+            # Show preprocessing steps
+            print("\n" + "-"*70)
+            print("PROCESSING STEPS:")
+            print("-"*70)
+
+            # Step 1: Original ROI
+            print("1. Original timer region extracted")
+            cv2.imshow("1. Original ROI", timer_roi)
+
+            # Step 2: Rotation (if any)
+            rotated = timer_roi.copy()
+            if calibrator.rotation == 90:
+                rotated = cv2.rotate(rotated, cv2.ROTATE_90_CLOCKWISE)
+                print(f"2. Rotated 90° clockwise")
+            elif calibrator.rotation == 180:
+                rotated = cv2.rotate(rotated, cv2.ROTATE_180)
+                print(f"2. Rotated 180°")
+            elif calibrator.rotation == 270:
+                rotated = cv2.rotate(rotated, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                print(f"2. Rotated 270° (90° counter-clockwise)")
+            else:
+                print("2. No rotation applied")
+
+            cv2.imshow("2. After Rotation", rotated)
+
+            # Step 3: Grayscale
+            gray = cv2.cvtColor(rotated, cv2.COLOR_BGR2GRAY)
+            print("3. Converted to grayscale")
+            cv2.imshow("3. Grayscale", gray)
+
+            # Step 4: Adaptive threshold
+            thresh = cv2.adaptiveThreshold(
+                gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+            )
+            print("4. Applied adaptive threshold (block_size=11, C=2)")
+            cv2.imshow("4. Thresholded (OCR Input)", thresh)
+
+            # Step 6: Run OCR
+            print("\n6. Running Tesseract OCR...")
+            custom_config = r'--oem 3 --psm 7 -c tessedit_char_whitelist=0123456789:.'
+
+            try:
+                raw_text = pytesseract.image_to_string(thresh, config=custom_config).strip()
+                timestamp, _ = TimerCalibrator._ocr_timer(timer_roi, calibrator.rotation, return_raw=True)
+
+                print("\n" + "="*70)
+                print("RESULTS:")
+                print("="*70)
+                print(f"  Raw OCR text:      '{raw_text}'")
+                print(f"  Parsed timestamp:  {timestamp}s" if timestamp is not None else "  Parsed timestamp:  FAILED")
+                print("="*70)
+
+                if timestamp is None:
+                    print("\n💡 TROUBLESHOOTING TIPS:")
+                    if not raw_text:
+                        print("  • Raw text is empty - region may be too small or low contrast")
+                        print("  • Try making the bounding box larger")
+                        print("  • Ensure timer is visible in the first frame")
+                    else:
+                        print(f"  • OCR read: '{raw_text}' but couldn't parse it")
+                        print("  • Check if timer format matches: MM:SS.mmm, MM:SS, SS.mmm, or SS")
+                        print("  • Try different rotation angles if text looks garbled")
+                else:
+                    print("\n✅ OCR successful!")
+
+            except Exception as e:
+                print(f"\n❌ OCR Error: {e}")
+
+            print("\nPress any key to continue testing...")
+            cv2.waitKey(0)
+
+            # Close debug windows
+            for window_name in ["1. Original ROI", "2. After Rotation", "3. Grayscale",
+                               "4. Thresholded (OCR Input)"]:
+                try:
+                    cv2.destroyWindow(window_name)
+                except:
+                    pass
+
+        # ESC key - exit
+        elif key == 27:
+            break
+
+        # 'r' key - reset
+        elif key == ord("r"):
+            calibrator.frame = calibrator.clone.copy()
+            calibrator.bbox = None
+            calibrator.start_point = None
+            calibrator.end_point = None
+            calibrator.selecting = False
+            calibrator.rotation = 0
+            print("\n🔄 Reset selection")
+
+        # Rotation keys
+        elif key == ord("0"):
+            calibrator.rotation = 0
+        elif key == ord("9"):
+            calibrator.rotation = 90
+        elif key == ord("1"):
+            calibrator.rotation = 180
+        elif key == ord("2"):
+            calibrator.rotation = 270
+
+    cv2.destroyAllWindows()
+    print("\n👋 Exiting debug mode\n")
 
 
 class ObjectTracker:
@@ -1439,8 +1627,18 @@ def main():
         action="store_true",
         help="Extract timestamps from on-screen timer using OCR (requires pytesseract and Tesseract OCR)",
     )
+    parser.add_argument(
+        "--debug-timer",
+        action="store_true",
+        help="Debug mode for timer OCR: test region selection and see preprocessing steps (skips tracking)",
+    )
 
     args = parser.parse_args()
+
+    # Debug mode - skip normal tracking
+    if args.debug_timer:
+        debug_timer_ocr(args.video_path)
+        return
 
     tracker = ObjectTracker(args.video_path, args.output_path)
     tracker.run(

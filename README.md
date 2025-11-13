@@ -84,6 +84,7 @@ python main.py <input_video_path> [output_video_path] [options]
 - `--stick-length LENGTH`: Length of reference stick in centimeters (default: 100.0)
 - `--no-calibrate`: Skip calibration step (track in pixels only)
 - `--use-timer`: Extract timestamps from on-screen timer using OCR
+- `--debug-timer`: Debug mode for timer OCR (shows preprocessing steps, no tracking)
 
 **Examples:**
 ```bash
@@ -91,13 +92,16 @@ python main.py <input_video_path> [output_video_path] [options]
 python main.py input.mp4 tracked_output.mp4
 
 # Using a 30cm ruler
-python main.py input.mp4 tracked_output.mp4 --stick-length 30
+python main.py input.py tracked_output.mp4 --stick-length 30
 
 # Skip calibration (pixel tracking only)
 python main.py input.mp4 tracked_output.mp4 --no-calibrate
 
 # Use OCR to extract timestamps from on-screen timer
 python main.py input.mp4 tracked_output.mp4 --use-timer
+
+# Debug timer OCR (troubleshoot OCR issues)
+python main.py input.mp4 --debug-timer
 ```
 
 ### Workflow
@@ -373,6 +377,37 @@ The `--use-timer` flag enables extraction of timestamps directly from an on-scre
 - Some frames may fail OCR (resulting in missing `timestamp_ocr` values)
 - Processing time is slightly increased due to OCR operations
 - Auto-skip assumes timer starts at a value > 0 (e.g., 0.001 or higher)
+
+### Timer OCR Debug Mode
+
+If timer OCR isn't working properly, use **debug mode** to diagnose the issue:
+
+```bash
+python main.py input.mp4 --debug-timer
+```
+
+**Debug mode shows:**
+1. Original timer region you selected
+2. Image after rotation (if any)
+3. Grayscale conversion
+4. Histogram equalization (contrast enhancement)
+5. Binary threshold (actual image fed to Tesseract)
+6. Raw OCR text and parsed result
+
+**How to use:**
+- Draw box around timer → Press SPACE to test OCR
+- View 5 preprocessing windows showing each transformation step
+- See exactly what Tesseract receives and what it reads
+- Adjust region/rotation and test again with SPACE
+- Press 'r' to reset, ESC to exit
+
+**Common issues identified in debug mode:**
+- **Black/white inverted**: Try adjusting contrast or using different thresholding
+- **Text too small in threshold view**: Make bounding box larger
+- **Garbled after rotation**: Try different rotation angle
+- **Empty threshold image**: Region may be all background
+
+Debug mode exits without running tracking, making it fast for iteration.
 
 ## Tips for Best Results
 
