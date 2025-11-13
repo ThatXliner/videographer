@@ -895,7 +895,9 @@ def debug_timer_ocr(video_path: str):
         print("\nInstall Tesseract:")
         print("  macOS:    brew install tesseract")
         print("  Ubuntu:   sudo apt-get install tesseract-ocr")
-        print("  Windows:  Download from https://github.com/tesseract-ocr/tesseract/wiki")
+        print(
+            "  Windows:  Download from https://github.com/tesseract-ocr/tesseract/wiki"
+        )
         return
 
     # Open video and get first frame
@@ -907,9 +909,9 @@ def debug_timer_ocr(video_path: str):
         print(f"❌ Could not read video file: {video_path}")
         return
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("🔍 TIMER OCR DEBUG MODE")
-    print("="*70)
+    print("=" * 70)
     print("\nThis mode helps diagnose timer OCR issues by showing preprocessing steps.")
     print("\nInstructions:")
     print("  1. Draw a box around the timer display")
@@ -917,7 +919,7 @@ def debug_timer_ocr(video_path: str):
     print("  3. Press SPACE to run OCR and see debug visualization")
     print("  4. Press 'r' to reset and try a different region")
     print("  5. Press 'q' or ESC to exit")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     # Use TimerCalibrator UI for selection
     calibrator = TimerCalibrator()
@@ -933,39 +935,18 @@ def debug_timer_ocr(video_path: str):
     cv2.setMouseCallback("Debug Timer OCR - Select Region", calibrator._mouse_callback)
 
     while True:
-        # Redraw frame
-        display_frame = calibrator.clone.copy()
-
-        # Draw current selection or bbox
-        if calibrator.selecting and calibrator.start_point and calibrator.end_point:
-            # Show live selection rectangle
-            cv2.rectangle(display_frame, calibrator.start_point, calibrator.end_point, (0, 255, 255), 2)
-        elif calibrator.bbox is not None:
-            # Show finalized bbox
-            x, y, w, h = calibrator.bbox
-            cv2.rectangle(display_frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
-            cv2.putText(
-                display_frame,
-                f"Rotation: {calibrator.rotation}° (0/9/1/2 to change) | SPACE to test",
-                (10, 30),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                (0, 255, 255),
-                2,
-            )
-
-        cv2.imshow("Debug Timer OCR - Select Region", display_frame)
-        key = cv2.waitKey(20) & 0xFF  # 20ms = ~50fps, smooth enough
+        cv2.imshow("Debug Timer OCR - Select Region", calibrator.frame)
+        key = cv2.waitKey(1) & 0xFF
 
         # SPACE key - run OCR debug
         if key == 32 and calibrator.bbox is not None:  # Space bar
             x, y, w, h = calibrator.bbox
-            timer_roi = calibrator.clone[y:y+h, x:x+w]
+            timer_roi = calibrator.clone[y : y + h, x : x + w]
 
             # Show preprocessing steps
-            print("\n" + "-"*70)
+            print("\n" + "-" * 70)
             print("PROCESSING STEPS:")
-            print("-"*70)
+            print("-" * 70)
 
             # Step 1: Original ROI
             print("1. Original timer region extracted")
@@ -1001,28 +982,40 @@ def debug_timer_ocr(video_path: str):
 
             # Step 6: Run OCR
             print("\n6. Running Tesseract OCR...")
-            custom_config = r'--oem 3 --psm 7 -c tessedit_char_whitelist=0123456789:.'
+            custom_config = r"--oem 3 --psm 7 -c tessedit_char_whitelist=0123456789:."
 
             try:
-                raw_text = pytesseract.image_to_string(thresh, config=custom_config).strip()
-                timestamp, _ = TimerCalibrator._ocr_timer(timer_roi, calibrator.rotation, return_raw=True)
+                raw_text = pytesseract.image_to_string(
+                    thresh, config=custom_config
+                ).strip()
+                timestamp, _ = TimerCalibrator._ocr_timer(
+                    timer_roi, calibrator.rotation, return_raw=True
+                )
 
-                print("\n" + "="*70)
+                print("\n" + "=" * 70)
                 print("RESULTS:")
-                print("="*70)
+                print("=" * 70)
                 print(f"  Raw OCR text:      '{raw_text}'")
-                print(f"  Parsed timestamp:  {timestamp}s" if timestamp is not None else "  Parsed timestamp:  FAILED")
-                print("="*70)
+                print(
+                    f"  Parsed timestamp:  {timestamp}s"
+                    if timestamp is not None
+                    else "  Parsed timestamp:  FAILED"
+                )
+                print("=" * 70)
 
                 if timestamp is None:
                     print("\n💡 TROUBLESHOOTING TIPS:")
                     if not raw_text:
-                        print("  • Raw text is empty - region may be too small or low contrast")
+                        print(
+                            "  • Raw text is empty - region may be too small or low contrast"
+                        )
                         print("  • Try making the bounding box larger")
                         print("  • Ensure timer is visible in the first frame")
                     else:
                         print(f"  • OCR read: '{raw_text}' but couldn't parse it")
-                        print("  • Check if timer format matches: MM:SS.mmm, MM:SS, SS.mmm, or SS")
+                        print(
+                            "  • Check if timer format matches: MM:SS.mmm, MM:SS, SS.mmm, or SS"
+                        )
                         print("  • Try different rotation angles if text looks garbled")
                 else:
                     print("\n✅ OCR successful!")
@@ -1034,15 +1027,19 @@ def debug_timer_ocr(video_path: str):
             cv2.waitKey(0)
 
             # Close debug windows
-            for window_name in ["1. Original ROI", "2. After Rotation", "3. Grayscale",
-                               "4. Thresholded (OCR Input)"]:
+            for window_name in [
+                "1. Original ROI",
+                "2. After Rotation",
+                "3. Grayscale",
+                "4. Thresholded (OCR Input)",
+            ]:
                 try:
                     cv2.destroyWindow(window_name)
                 except:
                     pass
 
-        # ESC key - exit
-        elif key == 27:
+        # ESC or 'q' key - exit
+        elif key == 27 or key == ord("q"):
             break
 
         # 'r' key - reset
@@ -1058,12 +1055,73 @@ def debug_timer_ocr(video_path: str):
         # Rotation keys
         elif key == ord("0"):
             calibrator.rotation = 0
+            # Redraw frame with updated rotation text
+            if calibrator.bbox is not None:
+                calibrator.frame = calibrator.clone.copy()
+                x, y, w, h = calibrator.bbox
+                cv2.rectangle(
+                    calibrator.frame, (x, y), (x + w, y + h), (0, 255, 255), 2
+                )
+                cv2.putText(
+                    calibrator.frame,
+                    f"Rotation: {calibrator.rotation}° (0/9/1/2 to change) | SPACE to test",
+                    (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (0, 255, 255),
+                    2,
+                )
         elif key == ord("9"):
             calibrator.rotation = 90
+            if calibrator.bbox is not None:
+                calibrator.frame = calibrator.clone.copy()
+                x, y, w, h = calibrator.bbox
+                cv2.rectangle(
+                    calibrator.frame, (x, y), (x + w, y + h), (0, 255, 255), 2
+                )
+                cv2.putText(
+                    calibrator.frame,
+                    f"Rotation: {calibrator.rotation}° (0/9/1/2 to change) | SPACE to test",
+                    (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (0, 255, 255),
+                    2,
+                )
         elif key == ord("1"):
             calibrator.rotation = 180
+            if calibrator.bbox is not None:
+                calibrator.frame = calibrator.clone.copy()
+                x, y, w, h = calibrator.bbox
+                cv2.rectangle(
+                    calibrator.frame, (x, y), (x + w, y + h), (0, 255, 255), 2
+                )
+                cv2.putText(
+                    calibrator.frame,
+                    f"Rotation: {calibrator.rotation}° (0/9/1/2 to change) | SPACE to test",
+                    (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (0, 255, 255),
+                    2,
+                )
         elif key == ord("2"):
             calibrator.rotation = 270
+            if calibrator.bbox is not None:
+                calibrator.frame = calibrator.clone.copy()
+                x, y, w, h = calibrator.bbox
+                cv2.rectangle(
+                    calibrator.frame, (x, y), (x + w, y + h), (0, 255, 255), 2
+                )
+                cv2.putText(
+                    calibrator.frame,
+                    f"Rotation: {calibrator.rotation}° (0/9/1/2 to change) | SPACE to test",
+                    (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (0, 255, 255),
+                    2,
+                )
 
     cv2.destroyAllWindows()
     print("\n👋 Exiting debug mode\n")
