@@ -87,6 +87,9 @@ Examples:
   # Save to file
   python to_csv.py position_data.json -r position -a x > output.csv
 
+  # Start from frame 100 (skip first 100 frames)
+  python to_csv.py position_data.json --start-frame 100 > output.csv
+
 Reference options:
   position        - Use the tracked reference point (default)
   bbox_top        - Top edge of bounding box
@@ -138,6 +141,13 @@ Reference options:
         help='CSV delimiter (default: comma)'
     )
 
+    parser.add_argument(
+        '--start-frame',
+        type=int,
+        default=0,
+        help='Start from this frame number (default: 0, start from beginning)'
+    )
+
     args = parser.parse_args()
 
     # Load data
@@ -166,8 +176,25 @@ Reference options:
     if not metadata.get("calibrated", False):
         print("Warning: Data is not calibrated. Values will be in pixels, not cm.", file=sys.stderr)
 
+    # Check if OCR timestamps are available
+    has_ocr_timestamps = any("timestamp_ocr" in dp for dp in tracking_data)
+    if has_ocr_timestamps:
+        print("Note: Using OCR timestamps from on-screen timer instead of frame-based timestamps.", file=sys.stderr)
+
+    # Filter by start frame if specified
+    if args.start_frame > 0:
+        original_count = len(tracking_data)
+        tracking_data = [dp for dp in tracking_data if dp.get("frame", 0) >= args.start_frame]
+        skipped_count = original_count - len(tracking_data)
+        if skipped_count > 0:
+            print(f"Note: Skipped {skipped_count} frames before frame {args.start_frame}.", file=sys.stderr)
+
     for data_point in tracking_data:
-        timestamp = data_point.get("timestamp")
+        # Prefer OCR timestamp if available, otherwise use frame-based timestamp
+        timestamp = data_point.get("timestamp_ocr")
+        if timestamp is None:
+            timestamp = data_point.get("timestamp")
+
         position = extract_position(data_point, args.reference, args.axis, args.offset)
 
         if timestamp is not None and position is not None:

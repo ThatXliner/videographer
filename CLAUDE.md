@@ -51,9 +51,16 @@ python to_csv.py position_data.json [options]
 # -o/--offset: offset value in cm
 # --header: include CSV header
 # --delimiter: CSV delimiter (default comma)
+# --start-frame: skip frames before this frame number
 
 # Example: Extract y-axis bottom of bbox with offset
 python to_csv.py position_data.json -r bbox_bottom -a y -o 1.0 --header > output.csv
+
+# Example: Start from frame 100 (skip first 100 frames)
+python to_csv.py position_data.json --start-frame 100 --header > output.csv
+
+# Note: Automatically uses OCR timestamps (timestamp_ocr) when available instead of frame-based timestamps
+# A notification is printed to stderr when OCR timestamps are detected
 ```
 
 ## Architecture
