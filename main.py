@@ -660,15 +660,21 @@ class ObjectTracker:
         # Interpolate cm value
         cm_along_ruler = cm1 + t * (cm2 - cm1)
 
-        # For y-axis, use perpendicular distance
+        # For y-axis, use perpendicular distance with sign
         # Calculate local scale at this position
         cm_per_pixel = abs(cm2 - cm1) / segment_length_px
 
-        # Calculate perpendicular distance from ruler line
-        perp_dist_px = min_dist
+        # Calculate signed perpendicular distance from ruler line
+        # Use cross product to determine which side of the line the point is on
+        # Cross product: (p2 - p1) × (point - p1)
+        cross = dx * (py - y1) - dy * (px - x1)
 
-        # Convert to cm
-        perp_dist_cm = perp_dist_px * cm_per_pixel
+        # If cross > 0, point is on the left side of the vector (p1 -> p2)
+        # If cross < 0, point is on the right side
+        sign = 1 if cross >= 0 else -1
+
+        # Convert to signed cm
+        perp_dist_cm = sign * min_dist * cm_per_pixel
 
         return cm_along_ruler, perp_dist_cm
 

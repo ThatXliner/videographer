@@ -304,6 +304,27 @@ Choose the most appropriate tracking point for your analysis:
 - **Inaccurate measurements**: Check tick mark alignment
 - **Jittery tracking**: Try smaller bounding box or different tracker settings
 
+## Known Limitations & Edge Cases
+
+### Object Goes Off-Frame
+When the tracked object leaves the video frame:
+- The CSRT tracker will report tracking failure
+- The output video displays **"Tracking lost!"** for those frames
+- **No position data** is recorded in `position_data.json` for failed frames
+- Frame numbers in the JSON will have gaps where tracking failed
+- Tracking typically does **not recover** automatically if the object returns to frame
+
+**Workaround:** Keep the object within frame boundaries throughout the video, or manually re-track segments if the object temporarily leaves the frame.
+
+### Object Behind/In Front of Calibration Ruler
+The perpendicular distance measurement (Y-axis) uses **signed distance**:
+- Points on the **left side** of the ruler vector (from start to end point) have **positive** Y values
+- Points on the **right side** have **negative** Y values
+- This allows you to distinguish which side of the ruler the object is on
+- Direction depends on how you marked the ruler during calibration (which end you clicked first)
+
+**Tip:** For consistent measurements, always calibrate the ruler in the same direction (e.g., left-to-right or top-to-bottom).
+
 ## Technical Details
 
 ### Dependencies
@@ -318,9 +339,11 @@ Choose the most appropriate tracking point for your analysis:
 - Handles scale changes and partial occlusions
 
 ### Coordinate System
-- Origin (0, 0) is at the **start point** of the meter stick
-- X-axis runs along the meter stick direction
-- Y-axis is perpendicular distance from the ruler
+- Origin (0, 0) is at the **start point** of the meter stick (first click during calibration)
+- X-axis runs along the meter stick direction (from start to end point)
+- Y-axis is **signed perpendicular distance** from the ruler:
+  - Positive values: left side of the ruler vector
+  - Negative values: right side of the ruler vector
 - All measurements in centimeters after calibration
 
 ## Project Structure

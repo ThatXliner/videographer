@@ -78,13 +78,14 @@ python to_csv.py position_data.json -r bbox_bottom -a y -o 1.0 --header > output
 
 ### Key Algorithms
 
-**Lens Distortion Correction** (_pixel_to_cm method, main.py:489-560)
+**Lens Distortion Correction** (_pixel_to_cm method, main.py:601-679)
 - Uses piecewise linear interpolation between adjustable tick marks
 - For any pixel position:
   1. Finds closest ruler segment (between two tick marks)
   2. Projects point onto that segment
   3. Interpolates cm value based on local tick positions
-  4. Calculates perpendicular distance using local scale (cm/pixel ratio)
+  4. Calculates **signed** perpendicular distance using local scale (cm/pixel ratio)
+  5. Uses cross product to determine sign (left side = positive, right side = negative)
 - Handles fisheye, barrel, pincushion, and perspective distortion
 
 **Tracking** (track_object method, main.py:597-705)
@@ -128,9 +129,12 @@ python to_csv.py position_data.json -r bbox_bottom -a y -o 1.0 --header > output
 
 ### Coordinate System
 
-- **Origin (0, 0)**: Start point of the meter stick (0cm mark)
-- **X-axis**: Along the meter stick direction
-- **Y-axis**: Perpendicular distance from the ruler
+- **Origin (0, 0)**: Start point of the meter stick (0cm mark, first click during calibration)
+- **X-axis**: Along the meter stick direction (from start to end point)
+- **Y-axis**: Signed perpendicular distance from the ruler
+  - Positive: left side of the ruler vector (when looking from start to end)
+  - Negative: right side of the ruler vector
+  - Determined using cross product: (ruler_vector) × (point - ruler_start)
 - All measurements in centimeters after calibration
 - Pixel coordinates are also preserved for reference
 
