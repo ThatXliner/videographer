@@ -58,13 +58,15 @@ python to_csv.py position_data.json -r bbox_bottom -a y -o 1.0 --header > output
 
 ### Core Components
 
-**TimerCalibrator** (main.py:365-552)
+**TimerCalibrator** (main.py:365-594)
 - Interactive UI for selecting on-screen timer region with bounding box
+- **Rotation support** for vertical/rotated videos (0°, 90°, 180°, 270°)
 - OCR-based timestamp extraction using Tesseract
 - Supports formats: MM:SS.mmm, MM:SS, SS.mmm, SS
-- Image preprocessing (grayscale, histogram equalization, thresholding) for better OCR
+- Image preprocessing (rotation → grayscale → histogram equalization → thresholding) for better OCR
 - Regex-based parsing to convert text to seconds
 - Validates OCR during calibration with test read
+- Interactive rotation adjustment with keyboard shortcuts (0/9/1/2 keys)
 
 **ObjectTracker** (main.py:764-1252)
 - Main orchestrator class that runs the complete tracking pipeline
@@ -102,12 +104,14 @@ python to_csv.py position_data.json -r bbox_bottom -a y -o 1.0 --header > output
   4. Calculates perpendicular distance using local scale (cm/pixel ratio)
 - Handles fisheye, barrel, pincushion, and perspective distortion
 
-**Tracking** (track_object method, main.py:597-705)
+**Tracking** (track_object method, main.py:954-1224)
 - Uses OpenCV's CSRT (Channel and Spatial Reliability Tracking) tracker
 - Initialized on user-selected bounding box in first frame
 - Updates frame-by-frame with adaptive model
 - Handles scale changes and partial occlusions
+- **Auto-skip feature**: When timer is enabled, skips frames until timer shows non-zero value
 - Stores both pixel and cm measurements for each frame
+- Reports number of skipped frames at completion
 
 ### Data Format
 
@@ -127,6 +131,7 @@ python to_csv.py position_data.json -r bbox_bottom -a y -o 1.0 --header > output
     },
     "timer": {
       "bbox": {"x": 100, "y": 50, "w": 200, "h": 60},
+      "rotation": 90,
       "method": "tesseract OCR"
     }
   },
@@ -175,3 +180,19 @@ python to_csv.py position_data.json -r bbox_bottom -a y -o 1.0 --header > output
 - Some frames may fail OCR, resulting in missing `timestamp_ocr` fields
 - Very small, blurry, or low-contrast timers may not be readable
 - OCR adds processing overhead to each frame
+- Rotation is applied before OCR to handle vertical/rotated videos
+
+### Timer Rotation for Vertical Videos
+- Use cases: vertical videos recorded on phones that get rotated during processing
+- The timer appears sideways (90°/270°) or upside-down (180°) in the rotated video
+- During calibration, user selects rotation angle (0/9/1/2 keys for 0°/90°/180°/270°)
+- Timer ROI is rotated before OCR preprocessing to ensure digits are upright
+- Rotation metadata is stored in position_data.json for reference
+
+### Timer Auto-Skip Feature
+- When `--use-timer` is enabled, frames are automatically skipped until timer starts
+- Detects timer start: first frame where OCR reads a non-zero timestamp
+- Prevents tracking during setup/pre-experiment period
+- Prints progress messages every 100 skipped frames
+- Final report includes total number of skipped frames
+- Use case: lab recordings where timer is visible but not started initially

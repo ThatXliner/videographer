@@ -126,11 +126,18 @@ Adjust tick marks for lens distortion:
 If you're using the `--use-timer` flag to extract timestamps from an on-screen timer:
 
 1. Click and drag to draw a box around the timer display
-2. Press **ENTER** to confirm (a test OCR result will be shown)
-3. Press **'r'** to reset if needed
-4. Press **ESC** to skip timer tracking
+2. **Adjust rotation** if needed (for rotated videos):
+   - Press **'0'** for 0° (no rotation)
+   - Press **'9'** for 90° clockwise
+   - Press **'1'** for 180°
+   - Press **'2'** for 270° (90° counter-clockwise)
+3. Press **ENTER** to confirm (a test OCR result will be shown)
+4. Press **'r'** to reset if needed
+5. Press **ESC** to skip timer tracking
 
 The timer region will be highlighted with a **cyan box** in the output video.
+
+> **Note:** Rotation is useful for vertical videos that get rotated during processing. The timer image will be rotated before OCR to ensure digits are upright for proper reading.
 
 **Supported Timer Formats:**
 - `MM:SS.mmm` (e.g., `01:23.456`)
@@ -142,7 +149,8 @@ The timer region will be highlighted with a **cyan box** in the output video.
 - Ensure the timer has good contrast (dark text on light background or vice versa)
 - Draw the box tightly around just the timer digits
 - Use a high-quality video with readable digits
-- Test the OCR result shown during calibration
+- **Set the correct rotation** for rotated videos (especially vertical videos)
+- Test the OCR result shown during calibration - if it's incorrect, try adjusting rotation
 
 #### **Step 3: Select Object**
 
@@ -171,6 +179,7 @@ The application processes the video automatically:
 - Creates output video with tracking overlay
 - Generates `position_data.json`
 - Extracts OCR timestamps (if timer enabled)
+- **Auto-skips frames** before timer starts (when using `--use-timer`)
 
 ### Output Files
 
@@ -330,15 +339,30 @@ The `--use-timer` flag enables extraction of timestamps directly from an on-scre
 
 **How it works:**
 1. During calibration, you select the timer region by drawing a box around it
-2. Each frame, the timer region is extracted and preprocessed (contrast enhancement, thresholding)
-3. Tesseract OCR extracts the digits
-4. The timestamp is parsed and stored as `timestamp_ocr` in the JSON output
+2. Optionally set rotation (0°, 90°, 180°, 270°) for rotated videos
+3. Each frame, the timer region is extracted, rotated if needed, and preprocessed (contrast enhancement, thresholding)
+4. Tesseract OCR extracts the digits
+5. The timestamp is parsed and stored as `timestamp_ocr` in the JSON output
+
+**Rotation Feature:**
+- Essential for vertical videos that get rotated during processing
+- The timer appears sideways/upside-down in the processed video
+- Before OCR, the timer image is rotated back to upright position
+- Ensures OCR can properly read the digits
+
+**Auto-Skip Before Timer Starts:**
+- When using `--use-timer`, the application automatically skips frames where the timer reads 0.000 (or fails OCR)
+- Tracking begins only when the timer shows a non-zero value
+- Useful for lab recordings where you set up the experiment before starting the timer
+- Saves processing time and avoids tracking before the experiment begins
+- Progress messages show how many frames were skipped
 
 **Limitations:**
 - OCR accuracy depends on video quality, contrast, and font clarity
 - Very small or blurry timer displays may not be readable
 - Some frames may fail OCR (resulting in missing `timestamp_ocr` values)
 - Processing time is slightly increased due to OCR operations
+- Auto-skip assumes timer starts at a value > 0 (e.g., 0.001 or higher)
 
 ## Tips for Best Results
 

@@ -372,15 +372,17 @@ class TimerCalibrator:
         self.selecting = False
         self.frame = None
         self.clone = None
+        self.rotation = 0  # Rotation angle: 0, 90, 180, or 270
 
-    def calibrate(self, frame: np.ndarray) -> Optional[Tuple[int, int, int, int]]:
+    def calibrate(self, frame: np.ndarray) -> Optional[Tuple[Tuple[int, int, int, int], int]]:
         """Display UI for user to select the timer display region.
 
         Args:
             frame: Video frame containing the timer display
 
         Returns:
-            Bounding box (x, y, w, h) of timer region, or None if cancelled
+            Tuple of (bbox, rotation) where bbox is (x, y, w, h) and rotation is 0/90/180/270,
+            or None if cancelled
         """
         if not TESSERACT_AVAILABLE:
             print("\n⚠️  pytesseract not available. Timer feature disabled.")
@@ -400,22 +402,37 @@ class TimerCalibrator:
 
         print("\n=== Timer Region Selection ===")
         print("1. Click and drag to draw a box around the timer display")
-        print("2. Press ENTER to confirm selection")
-        print("3. Press 'r' to reset selection")
-        print("4. Press ESC to skip timer tracking")
+        print("2. Press '0', '9', '1', or '2' to rotate: 0°, 90°, 180°, 270°")
+        print("3. Press ENTER to confirm selection")
+        print("4. Press 'r' to reset selection")
+        print("5. Press ESC to skip timer tracking")
 
         while True:
-            cv2.imshow("Select Timer Region", self.frame)
+            # Update display with rotation info
+            display_frame = self.frame.copy()
+            if self.bbox is not None:
+                cv2.putText(
+                    display_frame,
+                    f"Rotation: {self.rotation}° (press 0/9/1/2 to change)",
+                    (10, 60),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (0, 255, 255),
+                    2,
+                )
+
+            cv2.imshow("Select Timer Region", display_frame)
             key = cv2.waitKey(1) & 0xFF
 
             # Enter key - confirm selection
             if key == 13 and self.bbox is not None:
-                # Test OCR on selected region
+                # Test OCR on selected region with rotation
                 x, y, w, h = self.bbox
                 timer_roi = self.clone[y:y+h, x:x+w]
-                test_text = self._ocr_timer(timer_roi)
+                test_text = self._ocr_timer(timer_roi, self.rotation)
 
                 print(f"\n✓ Timer region selected")
+                print(f"  Rotation: {self.rotation}°")
                 print(f"  Test OCR result: '{test_text}'")
                 print("  (Make sure the timer digits are readable)")
                 break
@@ -430,9 +447,19 @@ class TimerCalibrator:
                 self.start_point = None
                 self.end_point = None
                 self.selecting = False
+                self.rotation = 0
+            # Rotation keys: 0=0°, 9=90°, 1=180°, 2=270°
+            elif key == ord("0"):
+                self.rotation = 0
+            elif key == ord("9"):
+                self.rotation = 90
+            elif key == ord("1"):
+                self.rotation = 180
+            elif key == ord("2"):
+                self.rotation = 270
 
         cv2.destroyAllWindows()
-        return self.bbox
+        return (self.bbox, self.rotation) if self.bbox is not None else None
 
     def _mouse_callback(self, event, x, y, flags, param):
         """Handle mouse events for timer region selection."""
@@ -488,17 +515,26 @@ class TimerCalibrator:
                 )
 
     @staticmethod
-    def _ocr_timer(timer_roi: np.ndarray) -> Optional[float]:
+    def _ocr_timer(timer_roi: np.ndarray, rotation: int = 0) -> Optional[float]:
         """Extract timestamp from timer region using OCR.
 
         Args:
             timer_roi: Cropped image of timer display
+            rotation: Rotation angle (0, 90, 180, or 270 degrees)
 
         Returns:
             Timestamp in seconds, or None if parsing failed
         """
         if not TESSERACT_AVAILABLE:
             return None
+
+        # Apply rotation if needed
+        if rotation == 90:
+            timer_roi = cv2.rotate(timer_roi, cv2.ROTATE_90_CLOCKWISE)
+        elif rotation == 180:
+            timer_roi = cv2.rotate(timer_roi, cv2.ROTATE_180)
+        elif rotation == 270:
+            timer_roi = cv2.rotate(timer_roi, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
         # Preprocess image for better OCR
         gray = cv2.cvtColor(timer_roi, cv2.COLOR_BGR2GRAY)
@@ -773,6 +809,7 @@ class ObjectTracker:
         self.reference_point_name = None
         self.reference_point_func = None
         self.timer_bbox = None  # Bounding box for timer region
+        self.timer_rotation = 0  # Rotation angle for timer (0, 90, 180, 270)
         self.use_timer = False  # Whether to use OCR timer
 
     def calibrate_scale(self, reference_length_cm: float = 100.0) -> bool:
@@ -811,9 +848,12 @@ class ObjectTracker:
             raise ValueError("Could not read video file")
 
         calibrator = TimerCalibrator()
-        self.timer_bbox = calibrator.calibrate(frame)
+        result = calibrator.calibrate(frame)
 
-        return self.timer_bbox is not None
+        if result is not None:
+            self.timer_bbox, self.timer_rotation = result
+            return True
+        return False
 
     def _pixel_to_cm(self, px: float, py: float) -> Tuple[float, float]:
         """Convert pixel coordinates to cm using calibration data.
@@ -948,7 +988,12 @@ class ObjectTracker:
         tracker.init(frame, initial_bbox)
 
         frame_number = 0
+        timer_started = not self.use_timer  # If not using timer, consider it "started"
+        skipped_frames = 0
+
         print(f"\nTracking object through {total_frames} frames...")
+        if self.use_timer:
+            print("Timer mode: Will skip frames until timer starts (non-zero)")
         print("Press 'q' to quit early")
 
         # Create window for tracking display
@@ -958,6 +1003,23 @@ class ObjectTracker:
             ret, frame = cap.read()
             if not ret:
                 break
+
+            # Check if timer has started (if using timer)
+            if self.use_timer and not timer_started and self.timer_bbox is not None:
+                tx, ty, tw, th = self.timer_bbox
+                timer_roi = frame[ty:ty+th, tx:tx+tw]
+                ocr_timestamp = TimerCalibrator._ocr_timer(timer_roi, self.timer_rotation)
+
+                if ocr_timestamp is not None and ocr_timestamp > 0:
+                    timer_started = True
+                    print(f"\n✓ Timer started at frame {frame_number} (t={ocr_timestamp:.3f}s)")
+                else:
+                    # Skip this frame - timer hasn't started
+                    skipped_frames += 1
+                    frame_number += 1
+                    if frame_number % 100 == 0:
+                        print(f"Waiting for timer to start... (skipped {skipped_frames} frames)")
+                    continue
 
             # Update tracker
             success, bbox = tracker.update(frame)
@@ -991,7 +1053,7 @@ class ObjectTracker:
                 if self.use_timer and self.timer_bbox is not None:
                     tx, ty, tw, th = self.timer_bbox
                     timer_roi = frame[ty:ty+th, tx:tx+tw]
-                    ocr_timestamp = TimerCalibrator._ocr_timer(timer_roi)
+                    ocr_timestamp = TimerCalibrator._ocr_timer(timer_roi, self.timer_rotation)
                     if ocr_timestamp is not None:
                         data_entry["timestamp_ocr"] = round(ocr_timestamp, 3)
 
@@ -1158,6 +1220,8 @@ class ObjectTracker:
         out.release()
         cv2.destroyAllWindows()
         print(f"Tracking complete! Processed {frame_number} frames.")
+        if self.use_timer and skipped_frames > 0:
+            print(f"Skipped {skipped_frames} frames before timer started.")
 
     def save_position_data(self, output_file: str = "position_data.json"):
         """Save the position data to a JSON file."""
@@ -1190,6 +1254,7 @@ class ObjectTracker:
                     "w": self.timer_bbox[2],
                     "h": self.timer_bbox[3],
                 },
+                "rotation": self.timer_rotation,
                 "method": "tesseract OCR",
             }
 
