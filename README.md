@@ -69,12 +69,23 @@ pip install opencv-contrib-python>=4.8.0 numpy>=1.24.0
 ### Basic Tracking
 
 ```bash
-python main.py <input_video_path> [output_video_path]
+python main.py <input_video_path> [output_video_path] [options]
 ```
 
-**Example:**
+**Options:**
+- `--stick-length LENGTH`: Length of reference stick in centimeters (default: 100.0)
+- `--no-calibrate`: Skip calibration step (track in pixels only)
+
+**Examples:**
 ```bash
+# Basic usage with 1-meter stick
 python main.py input.mp4 tracked_output.mp4
+
+# Using a 30cm ruler
+python main.py input.mp4 tracked_output.mp4 --stick-length 30
+
+# Skip calibration (pixel tracking only)
+python main.py input.mp4 tracked_output.mp4 --no-calibrate
 ```
 
 ### Workflow
@@ -83,13 +94,13 @@ The application guides you through an interactive workflow:
 
 #### **Step 1: Scale Calibration**
 
-Mark the meter stick endpoints:
-1. Click at the **0cm** end of the meter stick
-2. Click at the **100cm** end
+Mark the reference stick endpoints:
+1. Click at one end of the reference stick (0cm mark)
+2. Click at the other end (e.g., 100cm for a meter stick, 30cm for a ruler)
 3. Press **ENTER** to continue
 
 Adjust tick marks for lens distortion:
-1. Tick marks appear at 0, 10, 20, ..., 100 cm
+1. Tick marks appear at 10cm intervals along the reference stick
 2. **Click and drag** any tick mark to adjust its position
 3. Align ticks with the actual ruler markings in your video
 4. Press **ENTER** when satisfied

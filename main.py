@@ -42,19 +42,19 @@ class MeterStickCalibrator:
         self.stick_length_cm = stick_length_cm
         self.tick_positions = []
 
-        cv2.namedWindow("Calibrate Scale - Mark Meter Stick")
-        cv2.setMouseCallback("Calibrate Scale - Mark Meter Stick", self._mouse_callback)
+        cv2.namedWindow("Calibrate Scale - Mark Reference Stick")
+        cv2.setMouseCallback("Calibrate Scale - Mark Reference Stick", self._mouse_callback)
 
         print("\n=== Scale Calibration - Step 1 ===")
         print(f"Reference length: {stick_length_cm} cm")
-        print("1. Click at one end of the meter stick")
-        print("2. Click at the other end of the meter stick")
+        print("1. Click at one end of the reference stick")
+        print("2. Click at the other end of the reference stick")
         print("3. Press ENTER to continue")
         print("4. Press 'r' to reset")
         print("5. Press ESC to cancel")
 
         while True:
-            cv2.imshow("Calibrate Scale - Mark Meter Stick", self.frame)
+            cv2.imshow("Calibrate Scale - Mark Reference Stick", self.frame)
             key = cv2.waitKey(1) & 0xFF
 
             # Enter key - confirm selection
@@ -155,8 +155,8 @@ class MeterStickCalibrator:
         dy = self.end_point[1] - self.start_point[1]
         distance = np.sqrt(dx**2 + dy**2)
 
-        # Draw tick marks every 10cm (assuming 100cm stick)
-        num_ticks = 11  # 0, 10, 20, ..., 100 cm
+        # Draw tick marks every 10cm up to stick length
+        num_ticks = int(self.stick_length_cm / 10) + 1  # e.g., 11 ticks for 100cm (0, 10, ..., 100)
         for i in range(num_ticks):
             t = i / (num_ticks - 1)  # Parameter from 0 to 1
 
@@ -214,7 +214,7 @@ class MeterStickCalibrator:
         dx = self.end_point[0] - self.start_point[0]
         dy = self.end_point[1] - self.start_point[1]
 
-        num_ticks = 11  # 0, 10, 20, ..., 100 cm
+        num_ticks = int(self.stick_length_cm / 10) + 1  # e.g., 11 ticks for 100cm (0, 10, ..., 100)
         self.tick_positions = []
         for i in range(num_ticks):
             t = i / (num_ticks - 1)
@@ -232,19 +232,19 @@ class MeterStickCalibrator:
         print("  - Press ESC to cancel")
 
         cv2.setMouseCallback(
-            "Calibrate Scale - Mark Meter Stick", self._tick_adjust_callback
+            "Calibrate Scale - Mark Reference Stick", self._tick_adjust_callback
         )
 
         # Initial draw
         self._draw_adjustable_ticks()
-        cv2.imshow("Calibrate Scale - Mark Meter Stick", self.frame)
+        cv2.imshow("Calibrate Scale - Mark Reference Stick", self.frame)
         self.needs_redraw = False
 
         while True:
             # Only redraw if something changed
             if self.needs_redraw:
                 self._draw_adjustable_ticks()
-                cv2.imshow("Calibrate Scale - Mark Meter Stick", self.frame)
+                cv2.imshow("Calibrate Scale - Mark Reference Stick", self.frame)
                 self.needs_redraw = False
 
             key = cv2.waitKey(10) & 0xFF
@@ -1003,17 +1003,31 @@ class ObjectTracker:
 
 
 def main():
-    import sys
+    import argparse
 
-    if len(sys.argv) < 2:
-        print("Usage: python main.py <video_path> [output_path]")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        description="Track objects in videos with precise position measurements"
+    )
+    parser.add_argument("video_path", help="Path to input video file")
+    parser.add_argument(
+        "output_path", nargs="?", default="output.mp4", help="Path to output video file"
+    )
+    parser.add_argument(
+        "--stick-length",
+        type=float,
+        default=100.0,
+        help="Length of reference stick in centimeters (default: 100.0 for a meter stick)",
+    )
+    parser.add_argument(
+        "--no-calibrate",
+        action="store_true",
+        help="Skip calibration step (track in pixels only)",
+    )
 
-    video_path = sys.argv[1]
-    output_path = sys.argv[2] if len(sys.argv) > 2 else "output.mp4"
+    args = parser.parse_args()
 
-    tracker = ObjectTracker(video_path, output_path)
-    tracker.run()
+    tracker = ObjectTracker(args.video_path, args.output_path)
+    tracker.run(calibrate=not args.no_calibrate, reference_length_cm=args.stick_length)
 
 
 if __name__ == "__main__":

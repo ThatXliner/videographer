@@ -20,11 +20,17 @@ pip install opencv-contrib-python>=4.8.0 numpy>=1.24.0
 ### Running the Application
 ```bash
 # Basic tracking workflow
-python main.py <input_video_path> [output_video_path]
+python main.py <input_video_path> [output_video_path] [options]
 
-# Example
+# Examples
 python main.py input.mp4 tracked_output.mp4
+python main.py input.mp4 tracked_output.mp4 --stick-length 30  # Use 30cm ruler
+python main.py input.mp4 tracked_output.mp4 --no-calibrate     # Skip calibration
 ```
+
+### Command-line Options
+- `--stick-length LENGTH`: Length of reference stick in centimeters (default: 100.0)
+- `--no-calibrate`: Skip calibration step (track in pixels only)
 
 ### CSV Export
 ```bash
