@@ -15,6 +15,10 @@ uv sync
 
 # Or using pip
 pip install opencv-contrib-python>=4.8.0 numpy>=1.24.0
+
+# For timer OCR feature (optional)
+pip install pytesseract>=0.3.10
+# Also requires system installation: brew install tesseract (macOS) or apt-get install tesseract-ocr (Linux)
 ```
 
 ### Running the Application
@@ -26,11 +30,13 @@ python main.py <input_video_path> [output_video_path] [options]
 python main.py input.mp4 tracked_output.mp4
 python main.py input.mp4 tracked_output.mp4 --stick-length 30  # Use 30cm ruler
 python main.py input.mp4 tracked_output.mp4 --no-calibrate     # Skip calibration
+python main.py input.mp4 tracked_output.mp4 --use-timer        # Extract timestamps from on-screen timer
 ```
 
 ### Command-line Options
 - `--stick-length LENGTH`: Length of reference stick in centimeters (default: 100.0)
 - `--no-calibrate`: Skip calibration step (track in pixels only)
+- `--use-timer`: Extract timestamps from on-screen timer using OCR (requires pytesseract)
 
 ### CSV Export
 ```bash
@@ -52,11 +58,20 @@ python to_csv.py position_data.json -r bbox_bottom -a y -o 1.0 --header > output
 
 ### Core Components
 
-**ObjectTracker** (main.py:455-778)
+**TimerCalibrator** (main.py:365-552)
+- Interactive UI for selecting on-screen timer region with bounding box
+- OCR-based timestamp extraction using Tesseract
+- Supports formats: MM:SS.mmm, MM:SS, SS.mmm, SS
+- Image preprocessing (grayscale, histogram equalization, thresholding) for better OCR
+- Regex-based parsing to convert text to seconds
+- Validates OCR during calibration with test read
+
+**ObjectTracker** (main.py:764-1252)
 - Main orchestrator class that runs the complete tracking pipeline
-- Manages calibration, object selection, reference point selection, and tracking
+- Manages calibration, timer calibration (optional), object selection, reference point selection, and tracking
 - Converts pixel coordinates to centimeters using non-linear interpolation
-- Outputs tracked video and position_data.json
+- Extracts OCR timestamps from on-screen timer when enabled
+- Outputs tracked video and position_data.json with both frame-based and OCR timestamps
 
 **MeterStickCalibrator** (main.py:8-283)
 - Interactive UI for two-step scale calibration:
@@ -104,16 +119,22 @@ python to_csv.py position_data.json -r bbox_bottom -a y -o 1.0 --header > output
     "total_frames": 300,
     "calibrated": true,
     "reference_point": "bottom-center",
+    "timer_enabled": true,
     "calibration": {
       "reference_length_cm": 100.0,
       "tick_positions": [[x, y, cm], ...],
       "method": "non-linear interpolation with lens distortion correction"
+    },
+    "timer": {
+      "bbox": {"x": 100, "y": 50, "w": 200, "h": 60},
+      "method": "tesseract OCR"
     }
   },
   "tracking_data": [
     {
       "frame": 0,
       "timestamp": 0.0,
+      "timestamp_ocr": 0.123,
       "reference_point": "bottom-center",
       "position_x_pixels": 320,
       "position_y_pixels": 450,
@@ -138,5 +159,19 @@ python to_csv.py position_data.json -r bbox_bottom -a y -o 1.0 --header > output
 
 - The calibration tick adjustment is critical for accuracy with lens distortion
 - CSRT tracker requires opencv-contrib-python (not standard opencv-python)
+- Timer OCR feature requires pytesseract and system Tesseract OCR installation
+- OCR accuracy varies with timer clarity, contrast, and video quality
 - Output files (output.mp4, position_data.json) are gitignored
 - The application uses interactive OpenCV windows - requires display capability
+
+## Edge Cases and Limitations
+
+### Tracking Failures
+- When object goes off-frame, CSRT reports failure and no position data is recorded for those frames
+- Frame numbers in JSON will have gaps where tracking failed
+- Tracking typically does not auto-recover when object returns to frame
+
+### Timer OCR
+- Some frames may fail OCR, resulting in missing `timestamp_ocr` fields
+- Very small, blurry, or low-contrast timers may not be readable
+- OCR adds processing overhead to each frame

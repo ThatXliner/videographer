@@ -1,10 +1,17 @@
 import json
+import re
 
 # from norfair import Detection, Tracker, Video
 from typing import List, Optional, Tuple
 
 import cv2
 import numpy as np
+
+try:
+    import pytesseract
+    TESSERACT_AVAILABLE = True
+except ImportError:
+    TESSERACT_AVAILABLE = False
 
 
 class MeterStickCalibrator:
@@ -355,6 +362,196 @@ class MeterStickCalibrator:
                 self.needs_redraw = True
 
 
+class TimerCalibrator:
+    """UI for selecting the region of the on-screen timer for OCR."""
+
+    def __init__(self):
+        self.bbox = None
+        self.start_point = None
+        self.end_point = None
+        self.selecting = False
+        self.frame = None
+        self.clone = None
+
+    def calibrate(self, frame: np.ndarray) -> Optional[Tuple[int, int, int, int]]:
+        """Display UI for user to select the timer display region.
+
+        Args:
+            frame: Video frame containing the timer display
+
+        Returns:
+            Bounding box (x, y, w, h) of timer region, or None if cancelled
+        """
+        if not TESSERACT_AVAILABLE:
+            print("\n⚠️  pytesseract not available. Timer feature disabled.")
+            print("Install with: pip install pytesseract")
+            print("Also ensure Tesseract OCR is installed on your system.")
+            return None
+
+        self.frame = frame.copy()
+        self.clone = frame.copy()
+        self.bbox = None
+        self.start_point = None
+        self.end_point = None
+        self.selecting = False
+
+        cv2.namedWindow("Select Timer Region")
+        cv2.setMouseCallback("Select Timer Region", self._mouse_callback)
+
+        print("\n=== Timer Region Selection ===")
+        print("1. Click and drag to draw a box around the timer display")
+        print("2. Press ENTER to confirm selection")
+        print("3. Press 'r' to reset selection")
+        print("4. Press ESC to skip timer tracking")
+
+        while True:
+            cv2.imshow("Select Timer Region", self.frame)
+            key = cv2.waitKey(1) & 0xFF
+
+            # Enter key - confirm selection
+            if key == 13 and self.bbox is not None:
+                # Test OCR on selected region
+                x, y, w, h = self.bbox
+                timer_roi = self.clone[y:y+h, x:x+w]
+                test_text = self._ocr_timer(timer_roi)
+
+                print(f"\n✓ Timer region selected")
+                print(f"  Test OCR result: '{test_text}'")
+                print("  (Make sure the timer digits are readable)")
+                break
+            # ESC key - cancel
+            elif key == 27:
+                self.bbox = None
+                break
+            # 'r' key - reset
+            elif key == ord("r"):
+                self.frame = self.clone.copy()
+                self.bbox = None
+                self.start_point = None
+                self.end_point = None
+                self.selecting = False
+
+        cv2.destroyAllWindows()
+        return self.bbox
+
+    def _mouse_callback(self, event, x, y, flags, param):
+        """Handle mouse events for timer region selection."""
+        if event == cv2.EVENT_LBUTTONDOWN:
+            self.selecting = True
+            self.start_point = (x, y)
+            self.end_point = (x, y)
+
+        elif event == cv2.EVENT_MOUSEMOVE:
+            if self.selecting:
+                self.end_point = (x, y)
+                # Draw rectangle on temporary frame
+                self.frame = self.clone.copy()
+                cv2.rectangle(
+                    self.frame, self.start_point, self.end_point, (0, 255, 255), 2
+                )
+                cv2.putText(
+                    self.frame,
+                    "Release mouse to set timer region",
+                    (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (0, 255, 255),
+                    2,
+                )
+
+        elif event == cv2.EVENT_LBUTTONUP:
+            self.selecting = False
+            self.end_point = (x, y)
+
+            # Calculate bounding box (x, y, w, h)
+            x1 = min(self.start_point[0], self.end_point[0])
+            y1 = min(self.start_point[1], self.end_point[1])
+            x2 = max(self.start_point[0], self.end_point[0])
+            y2 = max(self.start_point[1], self.end_point[1])
+
+            w = x2 - x1
+            h = y2 - y1
+
+            if w > 5 and h > 5:  # Minimum size check
+                self.bbox = (x1, y1, w, h)
+                # Draw final rectangle
+                self.frame = self.clone.copy()
+                cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 255, 255), 2)
+                cv2.putText(
+                    self.frame,
+                    "Press ENTER to confirm, 'r' to reset",
+                    (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (0, 255, 255),
+                    2,
+                )
+
+    @staticmethod
+    def _ocr_timer(timer_roi: np.ndarray) -> Optional[float]:
+        """Extract timestamp from timer region using OCR.
+
+        Args:
+            timer_roi: Cropped image of timer display
+
+        Returns:
+            Timestamp in seconds, or None if parsing failed
+        """
+        if not TESSERACT_AVAILABLE:
+            return None
+
+        # Preprocess image for better OCR
+        gray = cv2.cvtColor(timer_roi, cv2.COLOR_BGR2GRAY)
+        # Increase contrast
+        gray = cv2.equalizeHist(gray)
+        # Apply threshold to get black text on white background
+        _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+        # Configure tesseract for digits and common time separators
+        custom_config = r'--oem 3 --psm 7 -c tessedit_char_whitelist=0123456789:.'
+
+        try:
+            text = pytesseract.image_to_string(thresh, config=custom_config).strip()
+
+            # Parse common time formats: MM:SS.mmm, SS.mmm, M:SS, etc.
+            # Try to extract numbers and convert to seconds
+
+            # Format: MM:SS.mmm or MM:SS
+            match = re.match(r'(\d+):(\d+)\.?(\d*)', text)
+            if match:
+                minutes = int(match.group(1))
+                seconds = int(match.group(2))
+                milliseconds = int(match.group(3)) if match.group(3) else 0
+                # Normalize milliseconds based on number of digits
+                if len(match.group(3)) == 3:
+                    milliseconds = milliseconds
+                elif len(match.group(3)) == 2:
+                    milliseconds = milliseconds * 10
+                elif len(match.group(3)) == 1:
+                    milliseconds = milliseconds * 100
+                return minutes * 60 + seconds + milliseconds / 1000.0
+
+            # Format: SS.mmm or SS
+            match = re.match(r'(\d+)\.?(\d*)', text)
+            if match:
+                seconds = int(match.group(1))
+                milliseconds = int(match.group(2)) if match.group(2) else 0
+                # Normalize milliseconds
+                if len(match.group(2)) == 3:
+                    milliseconds = milliseconds
+                elif len(match.group(2)) == 2:
+                    milliseconds = milliseconds * 10
+                elif len(match.group(2)) == 1:
+                    milliseconds = milliseconds * 100
+                return seconds + milliseconds / 1000.0
+
+            return None
+
+        except Exception as e:
+            # OCR failed
+            return None
+
+
 class ReferencePointSelector:
     """UI for selecting which point on the bounding box to track."""
 
@@ -575,6 +772,8 @@ class ObjectTracker:
         self.reference_length_cm = None
         self.reference_point_name = None
         self.reference_point_func = None
+        self.timer_bbox = None  # Bounding box for timer region
+        self.use_timer = False  # Whether to use OCR timer
 
     def calibrate_scale(self, reference_length_cm: float = 100.0) -> bool:
         """Calibrate the scale using a reference object (e.g., meter stick).
@@ -597,6 +796,24 @@ class ObjectTracker:
         self.reference_length_cm = reference_length_cm
 
         return self.calibration_data is not None
+
+    def calibrate_timer(self) -> bool:
+        """Calibrate the timer region for OCR timestamp extraction.
+
+        Returns:
+            True if timer calibration successful, False otherwise
+        """
+        cap = cv2.VideoCapture(self.video_path)
+        ret, frame = cap.read()
+        cap.release()
+
+        if not ret:
+            raise ValueError("Could not read video file")
+
+        calibrator = TimerCalibrator()
+        self.timer_bbox = calibrator.calibrate(frame)
+
+        return self.timer_bbox is not None
 
     def _pixel_to_cm(self, px: float, py: float) -> Tuple[float, float]:
         """Convert pixel coordinates to cm using calibration data.
@@ -770,6 +987,14 @@ class ObjectTracker:
                     "bbox_pixels": {"x": x, "y": y, "w": w, "h": h},
                 }
 
+                # Extract OCR timestamp if timer tracking is enabled
+                if self.use_timer and self.timer_bbox is not None:
+                    tx, ty, tw, th = self.timer_bbox
+                    timer_roi = frame[ty:ty+th, tx:tx+tw]
+                    ocr_timestamp = TimerCalibrator._ocr_timer(timer_roi)
+                    if ocr_timestamp is not None:
+                        data_entry["timestamp_ocr"] = round(ocr_timestamp, 3)
+
                 # Add scaled measurements if calibration was performed
                 if self.calibration_data is not None:
                     pos_x_cm, pos_y_cm = self._pixel_to_cm(ref_x, ref_y)
@@ -806,6 +1031,11 @@ class ObjectTracker:
                 # Draw reference point
                 cv2.circle(frame, (ref_x, ref_y), 8, (0, 0, 255), -1)
                 cv2.circle(frame, (ref_x, ref_y), 3, (255, 255, 255), -1)
+
+                # Draw timer region if enabled
+                if self.use_timer and self.timer_bbox is not None:
+                    tx, ty, tw, th = self.timer_bbox
+                    cv2.rectangle(frame, (tx, ty), (tx + tw, ty + th), (0, 255, 255), 2)
 
                 # Add position text
                 ref_name = self.reference_point_name or "bottom-center"
@@ -938,6 +1168,7 @@ class ObjectTracker:
                 "total_frames": len(self.position_data),
                 "calibrated": self.calibration_data is not None,
                 "reference_point": self.reference_point_name,
+                "timer_enabled": self.use_timer,
             },
             "tracking_data": self.position_data,
         }
@@ -950,16 +1181,29 @@ class ObjectTracker:
                 "method": "piecewise linear interpolation with lens distortion correction",
             }
 
+        # Add timer info if available
+        if self.use_timer and self.timer_bbox is not None:
+            output_data["metadata"]["timer"] = {
+                "bbox": {
+                    "x": self.timer_bbox[0],
+                    "y": self.timer_bbox[1],
+                    "w": self.timer_bbox[2],
+                    "h": self.timer_bbox[3],
+                },
+                "method": "tesseract OCR",
+            }
+
         with open(output_file, "w") as f:
             json.dump(output_data, f, indent=2)
         print(f"\n✓ Position data saved to {output_file}")
 
-    def run(self, calibrate: bool = True, reference_length_cm: float = 100.0):
+    def run(self, calibrate: bool = True, reference_length_cm: float = 100.0, use_timer: bool = False):
         """Run the complete tracking pipeline.
 
         Args:
             calibrate: Whether to perform scale calibration
             reference_length_cm: Length of reference object in centimeters (default 100 for meter stick)
+            use_timer: Whether to use OCR timer for timestamps
         """
         step = 1
 
@@ -968,6 +1212,15 @@ class ObjectTracker:
             print(f"Step {step}: Calibrate scale with reference object")
             if not self.calibrate_scale(reference_length_cm):
                 print("Calibration cancelled. Continuing without scale calibration.")
+            step += 1
+
+        # Optional timer calibration step
+        if use_timer:
+            print(f"Step {step}: Calibrate on-screen timer")
+            if self.calibrate_timer():
+                self.use_timer = True
+            else:
+                print("Timer calibration cancelled. Continuing without timer tracking.")
             step += 1
 
         print(f"Step {step}: Select object to track")
@@ -1023,11 +1276,20 @@ def main():
         action="store_true",
         help="Skip calibration step (track in pixels only)",
     )
+    parser.add_argument(
+        "--use-timer",
+        action="store_true",
+        help="Extract timestamps from on-screen timer using OCR (requires pytesseract and Tesseract OCR)",
+    )
 
     args = parser.parse_args()
 
     tracker = ObjectTracker(args.video_path, args.output_path)
-    tracker.run(calibrate=not args.no_calibrate, reference_length_cm=args.stick_length)
+    tracker.run(
+        calibrate=not args.no_calibrate,
+        reference_length_cm=args.stick_length,
+        use_timer=args.use_timer,
+    )
 
 
 if __name__ == "__main__":

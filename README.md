@@ -62,7 +62,15 @@ uv sync
 ### Using `pip`
 ```bash
 pip install opencv-contrib-python>=4.8.0 numpy>=1.24.0
+
+# For timer OCR feature (optional)
+pip install pytesseract>=0.3.10
 ```
+
+**Note:** The timer OCR feature also requires Tesseract OCR to be installed on your system:
+- **macOS**: `brew install tesseract`
+- **Ubuntu/Debian**: `sudo apt-get install tesseract-ocr`
+- **Windows**: Download installer from [GitHub](https://github.com/UB-Mannheim/tesseract/wiki)
 
 ## Usage
 
@@ -75,6 +83,7 @@ python main.py <input_video_path> [output_video_path] [options]
 **Options:**
 - `--stick-length LENGTH`: Length of reference stick in centimeters (default: 100.0)
 - `--no-calibrate`: Skip calibration step (track in pixels only)
+- `--use-timer`: Extract timestamps from on-screen timer using OCR
 
 **Examples:**
 ```bash
@@ -86,6 +95,9 @@ python main.py input.mp4 tracked_output.mp4 --stick-length 30
 
 # Skip calibration (pixel tracking only)
 python main.py input.mp4 tracked_output.mp4 --no-calibrate
+
+# Use OCR to extract timestamps from on-screen timer
+python main.py input.mp4 tracked_output.mp4 --use-timer
 ```
 
 ### Workflow
@@ -109,13 +121,36 @@ Adjust tick marks for lens distortion:
 
 > **Tip:** This step corrects for lens distortion. If your video has fisheye or other distortion, adjust the outer tick marks to match the curved ruler.
 
-#### **Step 2: Select Object**
+#### **Step 2: Timer Calibration** (if `--use-timer` is specified)
+
+If you're using the `--use-timer` flag to extract timestamps from an on-screen timer:
+
+1. Click and drag to draw a box around the timer display
+2. Press **ENTER** to confirm (a test OCR result will be shown)
+3. Press **'r'** to reset if needed
+4. Press **ESC** to skip timer tracking
+
+The timer region will be highlighted with a **cyan box** in the output video.
+
+**Supported Timer Formats:**
+- `MM:SS.mmm` (e.g., `01:23.456`)
+- `MM:SS` (e.g., `01:23`)
+- `SS.mmm` (e.g., `83.456`)
+- `SS` (e.g., `83`)
+
+**Tips for Best OCR Results:**
+- Ensure the timer has good contrast (dark text on light background or vice versa)
+- Draw the box tightly around just the timer digits
+- Use a high-quality video with readable digits
+- Test the OCR result shown during calibration
+
+#### **Step 3: Select Object**
 
 1. Click and drag to draw a bounding box around your object
 2. Press **ENTER** to confirm
 3. Press **'r'** to reset if needed
 
-#### **Step 3: Choose Reference Point**
+#### **Step 4: Choose Reference Point**
 
 Select which point on the bounding box to track:
 
@@ -129,18 +164,20 @@ Select which point on the bounding box to track:
 - Default is **8 (Bottom-Center)**
 - Press **ENTER** to confirm
 
-#### **Step 4: Track Object**
+#### **Step 5: Track Object**
 
 The application processes the video automatically:
 - Progress updates every 30 frames
 - Creates output video with tracking overlay
 - Generates `position_data.json`
+- Extracts OCR timestamps (if timer enabled)
 
 ### Output Files
 
 #### **Output Video**
 - Bounding box (green rectangle)
 - Reference point marker (red circle with white center)
+- Timer region box (cyan rectangle, if timer enabled)
 - Position overlay showing pixel and cm coordinates
 - Frame counter
 
@@ -180,11 +217,14 @@ Comprehensive tracking data with metadata:
 
 **Data Fields:**
 - `frame`: Frame number (0-indexed)
-- `timestamp`: Time in seconds
+- `timestamp`: Time in seconds (from video FPS)
+- `timestamp_ocr`: Time in seconds (from on-screen timer, if `--use-timer` enabled)
 - `reference_point`: Which point was tracked
 - `position_x/y_pixels`: Pixel coordinates of reference point
 - `position_x/y_cm`: Real-world coordinates in centimeters
 - `bbox_pixels/cm`: Bounding box in both units
+
+**Note:** When using `--use-timer`, both `timestamp` (calculated from frame rate) and `timestamp_ocr` (extracted from on-screen timer) are included. The OCR timestamp may be more accurate if the video was recorded at variable frame rate or if frame timing is unreliable.
 
 ## CSV Export
 
@@ -279,6 +319,27 @@ Choose the most appropriate tracking point for your analysis:
 - **Top/Bottom edges**: For measuring object heights
 - **Left/Right edges**: For measuring widths or leading/trailing edges
 
+### On-Screen Timer OCR
+
+The `--use-timer` flag enables extraction of timestamps directly from an on-screen timer display using OCR technology. This is particularly useful for:
+
+- **High-speed camera footage**: Where the video frame rate may not accurately represent real time
+- **Variable frame rate videos**: Where frame-based timing is unreliable
+- **Stopwatch recordings**: When you want to use the exact time shown in the video
+- **Scientific experiments**: Where precise timing from equipment displays is critical
+
+**How it works:**
+1. During calibration, you select the timer region by drawing a box around it
+2. Each frame, the timer region is extracted and preprocessed (contrast enhancement, thresholding)
+3. Tesseract OCR extracts the digits
+4. The timestamp is parsed and stored as `timestamp_ocr` in the JSON output
+
+**Limitations:**
+- OCR accuracy depends on video quality, contrast, and font clarity
+- Very small or blurry timer displays may not be readable
+- Some frames may fail OCR (resulting in missing `timestamp_ocr` values)
+- Processing time is slightly increased due to OCR operations
+
 ## Tips for Best Results
 
 ### Camera Setup
@@ -310,6 +371,7 @@ Choose the most appropriate tracking point for your analysis:
 - **opencv-contrib-python**: CSRT tracker and video I/O
 <!--- **norfair**: Object tracking framework (currently used minimally)-->
 - **numpy**: Numerical operations
+- **pytesseract** (optional): OCR for timer extraction (requires system Tesseract OCR installation)
 
 ### Tracking Algorithm
 - Uses OpenCV's CSRT (Channel and Spatial Reliability Tracking) tracker
