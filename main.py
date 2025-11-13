@@ -387,6 +387,7 @@ class TimerCalibrator:
         self.frame = None
         self.clone = None
         self.rotation = 0  # Rotation angle: 0, 90, 180, or 270
+        self.needs_redraw = False
 
     def calibrate(
         self, frame: np.ndarray
@@ -437,22 +438,19 @@ class TimerCalibrator:
         print("4. Press 'r' to reset selection")
         print("5. Press ESC to skip timer tracking")
 
-        while True:
-            # Update display with rotation info
-            display_frame = self.frame.copy()
-            if self.bbox is not None:
-                cv2.putText(
-                    display_frame,
-                    f"Rotation: {self.rotation}° (press 0/9/1/2 to change)",
-                    (10, 60),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.6,
-                    (0, 255, 255),
-                    2,
-                )
+        # Initial draw
+        self._draw_selection()
+        cv2.imshow("Select Timer Region", self.frame)
+        self.needs_redraw = False
 
-            cv2.imshow("Select Timer Region", display_frame)
-            key = cv2.waitKey(1) & 0xFF
+        while True:
+            # Only redraw if something changed
+            if self.needs_redraw:
+                self._draw_selection()
+                cv2.imshow("Select Timer Region", self.frame)
+                self.needs_redraw = False
+
+            key = cv2.waitKey(10) & 0xFF
 
             # Enter key - confirm selection
             if key == 13 and self.bbox is not None:
@@ -488,12 +486,12 @@ class TimerCalibrator:
                         retry_key = cv2.waitKey(0) & 0xFF
                         if retry_key == ord("r"):
                             # Reset and retry
-                            self.frame = self.clone.copy()
                             self.bbox = None
                             self.start_point = None
                             self.end_point = None
                             self.selecting = False
                             self.rotation = 0
+                            self.needs_redraw = True
                             print("\n  Resetting timer selection...")
                             break
                         elif retry_key == 13:
@@ -516,21 +514,25 @@ class TimerCalibrator:
                 break
             # 'r' key - reset
             elif key == ord("r"):
-                self.frame = self.clone.copy()
                 self.bbox = None
                 self.start_point = None
                 self.end_point = None
                 self.selecting = False
                 self.rotation = 0
+                self.needs_redraw = True
             # Rotation keys: 0=0°, 9=90°, 1=180°, 2=270°
             elif key == ord("0"):
                 self.rotation = 0
+                self.needs_redraw = True
             elif key == ord("9"):
                 self.rotation = 90
+                self.needs_redraw = True
             elif key == ord("1"):
                 self.rotation = 180
+                self.needs_redraw = True
             elif key == ord("2"):
                 self.rotation = 270
+                self.needs_redraw = True
 
         cv2.destroyAllWindows()
         return (self.bbox, self.rotation) if self.bbox is not None else None
@@ -541,24 +543,12 @@ class TimerCalibrator:
             self.selecting = True
             self.start_point = (x, y)
             self.end_point = (x, y)
+            self.needs_redraw = True
 
         elif event == cv2.EVENT_MOUSEMOVE:
             if self.selecting:
                 self.end_point = (x, y)
-                # Draw rectangle on temporary frame
-                self.frame = self.clone.copy()
-                cv2.rectangle(
-                    self.frame, self.start_point, self.end_point, (0, 255, 255), 2
-                )
-                cv2.putText(
-                    self.frame,
-                    "Release mouse to set timer region",
-                    (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7,
-                    (0, 255, 255),
-                    2,
-                )
+                self.needs_redraw = True
 
         elif event == cv2.EVENT_LBUTTONUP:
             self.selecting = False
@@ -575,18 +565,49 @@ class TimerCalibrator:
 
             if w > 5 and h > 5:  # Minimum size check
                 self.bbox = (x1, y1, w, h)
-                # Draw final rectangle
-                self.frame = self.clone.copy()
-                cv2.rectangle(self.frame, (x1, y1), (x2, y2), (0, 255, 255), 2)
-                cv2.putText(
-                    self.frame,
-                    "Press ENTER to confirm, 'r' to reset",
-                    (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7,
-                    (0, 255, 255),
-                    2,
-                )
+                self.needs_redraw = True
+
+    def _draw_selection(self):
+        """Draw the current selection state."""
+        self.frame = self.clone.copy()
+
+        # If actively selecting, draw preview rectangle
+        if self.selecting and self.start_point and self.end_point:
+            cv2.rectangle(
+                self.frame, self.start_point, self.end_point, (0, 255, 255), 2
+            )
+            cv2.putText(
+                self.frame,
+                "Release mouse to set timer region",
+                (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.7,
+                (0, 255, 255),
+                2,
+            )
+
+        # If bbox is set, draw final rectangle
+        elif self.bbox is not None:
+            x, y, w, h = self.bbox
+            cv2.rectangle(self.frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
+            cv2.putText(
+                self.frame,
+                "Press ENTER to confirm, 'r' to reset",
+                (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.7,
+                (0, 255, 255),
+                2,
+            )
+            cv2.putText(
+                self.frame,
+                f"Rotation: {self.rotation}° (press 0/9/1/2 to change)",
+                (10, 60),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (0, 255, 255),
+                2,
+            )
 
     @staticmethod
     def _ocr_timer(
@@ -1470,6 +1491,30 @@ class ObjectTracker:
                     (0, 255, 0),
                     2,
                 )
+
+                # Display OCR timestamp if timer is enabled
+                if self.use_timer and self.timer_bbox is not None:
+                    if "timestamp_ocr" in data_entry and data_entry["timestamp_ocr"] is not None:
+                        ocr_time = data_entry["timestamp_ocr"]
+                        cv2.putText(
+                            frame,
+                            f"Timer: {ocr_time:.3f}s",
+                            (10, 90),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.7,
+                            (0, 255, 255),
+                            2,
+                        )
+                    else:
+                        cv2.putText(
+                            frame,
+                            "Timer: (OCR failed)",
+                            (10, 90),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.7,
+                            (0, 165, 255),
+                            2,
+                        )
             else:
                 # Tracking failed
                 cv2.putText(
