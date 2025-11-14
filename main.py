@@ -1325,12 +1325,16 @@ class ObjectTracker:
             raise ValueError("Could not read first frame")
 
         tracker = cv2.TrackerCSRT_create()
+        if tracker is None:
+            raise RuntimeError("Failed to create CSRT tracker. Ensure your OpenCV build includes contrib modules.")
         tracker.init(frame, initial_bbox)
 
         # Initialize timer tracker if timer is enabled
         timer_tracker = None
         if self.use_timer and self.timer_bbox is not None:
             timer_tracker = cv2.TrackerCSRT_create()
+            if timer_tracker is None:
+                raise RuntimeError("Failed to create timer CSRT tracker. Ensure your OpenCV build includes contrib modules.")
             timer_tracker.init(frame, self.timer_bbox)
 
         frame_number = 0
