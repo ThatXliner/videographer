@@ -399,12 +399,6 @@ python main.py input.mp4 --debug-timer
 - Adjust region/rotation and test again with SPACE
 - Press 'r' to reset, ESC to exit
 
-**Common issues identified in debug mode:**
-- **Black/white inverted**: Try adjusting contrast or using different thresholding
-- **Text too small in threshold view**: Make bounding box larger
-- **Garbled after rotation**: Try different rotation angle
-- **Empty threshold image**: Region may be all background
-
 Debug mode exits without running tracking, making it fast for iteration.
 
 ## Tips for Best Results
