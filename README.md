@@ -121,7 +121,7 @@ Adjust tick marks for lens distortion:
 3. Align ticks with the actual ruler markings in your video
 4. Press **ENTER** when satisfied
 
-![Calibration UI](docs/calibration.png)
+![Calibration UI](docs/calibration.jpeg)
 
 > **Tip:** This step corrects for lens distortion. If your video has fisheye or other distortion, adjust the outer tick marks to match the curved ruler.
 
