@@ -165,6 +165,8 @@ The timer region will be highlighted with a **cyan box** in the output video.
 
 #### **Step 3: Select Object**
 
+![Pre-select UI](docs/pre-select.jpeg)
+
 1. Click and drag to draw a bounding box around your object
 2. Press **ENTER** to confirm
 3. Press **'r'** to reset if needed
@@ -184,6 +186,8 @@ Select which point on the bounding box to track:
 - Press **ENTER** to confirm
 
 #### **Step 5: Track Object**
+
+![During tracking](docs/during-tracking.jpeg)
 
 The application processes the video automatically:
 - Progress updates every 30 frames
