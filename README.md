@@ -354,7 +354,7 @@ The `--use-timer` flag enables extraction of timestamps directly from an on-scre
 3. **OCR validation**: Test OCR on first frame, showing both raw text and parsed result
    - If parsing fails, you're prompted to retry with adjusted region/rotation
    - Prevents proceeding with misconfigured timer detection
-4. Each frame, the timer region is extracted, rotated if needed, and preprocessed (contrast enhancement, thresholding)
+4. Each frame, the timer region is extracted, rotated if needed, and converted to grayscale before OCR
 5. Tesseract OCR extracts the digits
 6. The timestamp is parsed and stored as `timestamp_ocr` in the JSON output
 
@@ -390,9 +390,7 @@ python main.py input.mp4 --debug-timer
 1. Original timer region you selected
 2. Image after rotation (if any)
 3. Grayscale conversion
-4. Histogram equalization (contrast enhancement)
-5. Binary threshold (actual image fed to Tesseract)
-6. Raw OCR text and parsed result
+4. Raw OCR text and parsed result
 
 **How to use:**
 - Draw box around timer → Press SPACE to test OCR
