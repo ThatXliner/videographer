@@ -635,8 +635,8 @@ class TimerCalibrator:
         elif rotation == 270:
             timer_roi = cv2.rotate(timer_roi, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
-        # Preprocess image: just convert to grayscale
-        # Note: Removed adaptive thresholding as it can harm OCR quality
+        # Preprocess image: only convert to grayscale (no thresholding)
+        # Note: Removed adaptive thresholding as it can harm OCR quality; now only grayscale conversion is performed
         gray = cv2.cvtColor(timer_roi, cv2.COLOR_BGR2GRAY)
 
         # Configure tesseract for digits and common time separators
