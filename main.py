@@ -966,9 +966,7 @@ def debug_timer_ocr(video_path: str):
         if calibrator.bbox is not None:
             calibrator.frame = calibrator.clone.copy()
             x, y, w, h = calibrator.bbox
-            cv2.rectangle(
-                calibrator.frame, (x, y), (x + w, y + h), (0, 255, 255), 2
-            )
+            cv2.rectangle(calibrator.frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
             cv2.putText(
                 calibrator.frame,
                 f"Rotation: {calibrator.rotation}° (0/9/1/2 to change) | SPACE to test",
@@ -1327,6 +1325,9 @@ class ObjectTracker:
                 if timer_success:
                     # Update timer bbox to tracked position
                     self.timer_bbox = tuple(int(v) for v in timer_bbox_updated)
+                else:
+                    # Tracking failed; do not use stale bbox
+                    self.timer_bbox = None
 
             # Check if timer has started (if using timer)
             if self.use_timer and not timer_started and self.timer_bbox is not None:
