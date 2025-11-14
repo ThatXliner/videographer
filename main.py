@@ -1061,10 +1061,7 @@ def debug_timer_ocr(video_path: str):
                 "2. After Rotation",
                 "3. Grayscale (OCR Input)",
             ]:
-                try:
-                    cv2.destroyWindow(window_name)
-                except Exception:
-                    print(f"Failed to close window: {window_name}")
+                cv2.destroyWindow(window_name)
 
         # ESC or 'q' key - exit
         elif key == 27 or key == ord("q"):
