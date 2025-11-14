@@ -655,9 +655,9 @@ class TimerCalibrator:
                 seconds = int(match.group(2))
                 milliseconds = int(match.group(3)) if match.group(3) else 0
                 # Normalize milliseconds based on number of digits
-                if len(match.group(3)) == 3:
-                    milliseconds = milliseconds
-                elif len(match.group(3)) == 2:
+                # if len(match.group(3)) == 3:
+                #     milliseconds = milliseconds
+                if len(match.group(3)) == 2:
                     milliseconds = milliseconds * 10
                 elif len(match.group(3)) == 1:
                     milliseconds = milliseconds * 100
@@ -670,9 +670,9 @@ class TimerCalibrator:
                 seconds = int(match.group(1))
                 milliseconds = int(match.group(2)) if match.group(2) else 0
                 # Normalize milliseconds
-                if len(match.group(2)) == 3:
-                    milliseconds = milliseconds
-                elif len(match.group(2)) == 2:
+                # if len(match.group(2)) == 3:
+                #     milliseconds = milliseconds
+                if len(match.group(2)) == 2:
                     milliseconds = milliseconds * 10
                 elif len(match.group(2)) == 1:
                     milliseconds = milliseconds * 100
@@ -1325,7 +1325,9 @@ class ObjectTracker:
 
         tracker = cv2.TrackerCSRT_create()
         if tracker is None:
-            raise RuntimeError("Failed to create CSRT tracker. Ensure your OpenCV build includes contrib modules.")
+            raise RuntimeError(
+                "Failed to create CSRT tracker. Ensure your OpenCV build includes contrib modules."
+            )
         tracker.init(frame, initial_bbox)
 
         # Initialize timer tracker if timer is enabled
@@ -1333,7 +1335,9 @@ class ObjectTracker:
         if self.use_timer and self.timer_bbox is not None:
             timer_tracker = cv2.TrackerCSRT_create()
             if timer_tracker is None:
-                raise RuntimeError("Failed to create timer CSRT tracker. Ensure your OpenCV build includes contrib modules.")
+                raise RuntimeError(
+                    "Failed to create timer CSRT tracker. Ensure your OpenCV build includes contrib modules."
+                )
             timer_tracker.init(frame, self.timer_bbox)
 
         frame_number = 0
@@ -1499,7 +1503,10 @@ class ObjectTracker:
 
                 # Display OCR timestamp if timer is enabled
                 if self.use_timer and self.timer_bbox is not None:
-                    if "timestamp_ocr" in data_entry and data_entry["timestamp_ocr"] is not None:
+                    if (
+                        "timestamp_ocr" in data_entry
+                        and data_entry["timestamp_ocr"] is not None
+                    ):
                         ocr_time = data_entry["timestamp_ocr"]
                         cv2.putText(
                             frame,
