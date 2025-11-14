@@ -1044,7 +1044,7 @@ def debug_timer_ocr(video_path: str):
             ]:
                 try:
                     cv2.destroyWindow(window_name)
-                except:
+                except Exception:
                     pass
 
         # ESC or 'q' key - exit
