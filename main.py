@@ -1045,7 +1045,7 @@ def debug_timer_ocr(video_path: str):
                 try:
                     cv2.destroyWindow(window_name)
                 except Exception:
-                    pass
+                    print(f"Failed to close window: {window_name}")
 
         # ESC or 'q' key - exit
         elif key == 27 or key == ord("q"):
