@@ -1040,8 +1040,7 @@ def debug_timer_ocr(video_path: str):
             for window_name in [
                 "1. Original ROI",
                 "2. After Rotation",
-                "3. Grayscale",
-                "4. Thresholded (OCR Input)",
+                "3. Grayscale (OCR Input)",
             ]:
                 try:
                     cv2.destroyWindow(window_name)
