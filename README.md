@@ -286,6 +286,7 @@ Choose the most appropriate tracking point for your analysis:
 
 ### Camera Setup
 - Mount camera on stable tripod
+- Use a narrow lens to minimize distortion (e.g. 2x optical zoom)
 - Keep meter stick parallel to the plane of motion
 - Ensure good lighting and contrast
 - Avoid motion blur (use faster shutter speed)
@@ -293,19 +294,19 @@ Choose the most appropriate tracking point for your analysis:
 ### Calibration
 - Use a high-contrast meter stick that's clearly visible
 - Place the meter stick in the same plane as object motion
-- If using adjustable ticks, zoom in to align precisely
+<!--- If using adjustable ticks, zoom in to align precisely-->
 - Take time to adjust distorted tick marks carefully
 
 ### Object Selection
-- Draw bounding box tightly around the object
-- Include distinctive features for better tracking
+<!--- Draw bounding box tightly around the object
+- Include distinctive features for better tracking-->
 - Choose a reference point that's consistently visible
 - Test tracking on a few frames first
 
-### Troubleshooting
+<!--### Troubleshooting
 - **Tracking lost**: Object may be too small or moving too fast
 - **Inaccurate measurements**: Check tick mark alignment
-- **Jittery tracking**: Try smaller bounding box or different tracker settings
+- **Jittery tracking**: Try smaller bounding box or different tracker settings-->
 
 ## Technical Details
 
