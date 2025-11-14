@@ -92,7 +92,7 @@ python main.py <input_video_path> [output_video_path] [options]
 python main.py input.mp4 tracked_output.mp4
 
 # Using a 30cm ruler
-python main.py input.py tracked_output.mp4 --stick-length 30
+python main.py input.mp4 tracked_output.mp4 --stick-length 30
 
 # Skip calibration (pixel tracking only)
 python main.py input.mp4 tracked_output.mp4 --no-calibrate
