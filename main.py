@@ -22,6 +22,49 @@ except ImportError:
     TESSERACT_AVAILABLE = False
 
 
+def parse_timestamp(text: str) -> Optional[float]:
+    """Parse timestamp text into seconds.
+
+    Supports common time formats:
+    - MM:SS.mmm (minutes:seconds.milliseconds)
+    - MM:SS (minutes:seconds)
+    - SS.mmm (seconds.milliseconds)
+    - SS (seconds only)
+
+    Args:
+        text: OCR text containing timestamp
+
+    Returns:
+        Timestamp in seconds, or None if parsing failed
+    """
+    # Format: MM:SS.mmm or MM:SS
+    match = re.match(r"(\d+):(\d+)\.?(\d*)", text)
+    if match:
+        minutes = int(match.group(1))
+        seconds = int(match.group(2))
+        milliseconds = int(match.group(3)) if match.group(3) else 0
+        # Normalize milliseconds based on number of digits
+        if len(match.group(3)) == 2:
+            milliseconds = milliseconds * 10
+        elif len(match.group(3)) == 1:
+            milliseconds = milliseconds * 100
+        return minutes * 60 + seconds + milliseconds / 1000.0
+
+    # Format: SS.mmm or SS
+    match = re.match(r"(\d+)\.?(\d*)", text)
+    if match:
+        seconds = int(match.group(1))
+        milliseconds = int(match.group(2)) if match.group(2) else 0
+        # Normalize milliseconds
+        if len(match.group(2)) == 2:
+            milliseconds = milliseconds * 10
+        elif len(match.group(2)) == 1:
+            milliseconds = milliseconds * 100
+        return seconds + milliseconds / 1000.0
+
+    return None
+
+
 class MeterStickCalibrator:
     """UI for calibrating scale using a meter stick with adjustable tick marks."""
 
@@ -644,42 +687,8 @@ class TimerCalibrator:
 
         try:
             text = pytesseract.image_to_string(gray, config=custom_config).strip()
-
-            # Parse common time formats: MM:SS.mmm, SS.mmm, M:SS, etc.
-            # Try to extract numbers and convert to seconds
-
-            # Format: MM:SS.mmm or MM:SS
-            match = re.match(r"(\d+):(\d+)\.?(\d*)", text)
-            if match:
-                minutes = int(match.group(1))
-                seconds = int(match.group(2))
-                milliseconds = int(match.group(3)) if match.group(3) else 0
-                # Normalize milliseconds based on number of digits
-                # if len(match.group(3)) == 3:
-                #     milliseconds = milliseconds
-                if len(match.group(3)) == 2:
-                    milliseconds = milliseconds * 10
-                elif len(match.group(3)) == 1:
-                    milliseconds = milliseconds * 100
-                timestamp = minutes * 60 + seconds + milliseconds / 1000.0
-                return (timestamp, text) if return_raw else timestamp
-
-            # Format: SS.mmm or SS
-            match = re.match(r"(\d+)\.?(\d*)", text)
-            if match:
-                seconds = int(match.group(1))
-                milliseconds = int(match.group(2)) if match.group(2) else 0
-                # Normalize milliseconds
-                # if len(match.group(2)) == 3:
-                #     milliseconds = milliseconds
-                if len(match.group(2)) == 2:
-                    milliseconds = milliseconds * 10
-                elif len(match.group(2)) == 1:
-                    milliseconds = milliseconds * 100
-                timestamp = seconds + milliseconds / 1000.0
-                return (timestamp, text) if return_raw else timestamp
-
-            return (None, text) if return_raw else None
+            timestamp = parse_timestamp(text)
+            return (timestamp, text) if return_raw else timestamp
 
         except Exception as e:
             # OCR failed
