@@ -394,7 +394,7 @@ python main.py input.mp4 --debug-timer
 
 **How to use:**
 - Draw box around timer → Press SPACE to test OCR
-- View 5 preprocessing windows showing each transformation step
+- View 3 preprocessing windows showing each transformation step
 - See exactly what Tesseract receives and what it reads
 - Adjust region/rotation and test again with SPACE
 - Press 'r' to reset, ESC to exit
