@@ -131,7 +131,8 @@ Select which point on the bounding box to track:
 
 #### **Step 4: Track Object**
 
-> [!INFO] The object that will be tracked must be present in the first frame
+> [!NOTE]
+> Caveat: The object that will be tracked must be present in the first frame
 
 The application processes the video automatically:
 - Progress updates every 30 frames
