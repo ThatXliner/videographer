@@ -70,7 +70,7 @@ pip install pytesseract>=0.3.10
 **Note:** The timer OCR feature also requires Tesseract OCR to be installed on your system:
 - **macOS**: `brew install tesseract`
 - **Ubuntu/Debian**: `sudo apt-get install tesseract-ocr`
-- **Windows**: Download installer from [GitHub](https://github.com/UB-Mannheim/tesseract/wiki)
+- **Windows**: Download installer from [Tesseract-OCR/Tesseract](https://github.com/tesseract-ocr/tesseract/wiki)
 
 ## Usage
 
