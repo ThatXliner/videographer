@@ -951,6 +951,25 @@ def debug_timer_ocr(video_path: str):
     cv2.namedWindow("Debug Timer OCR - Select Region")
     cv2.setMouseCallback("Debug Timer OCR - Select Region", calibrator._mouse_callback)
 
+    # Helper function to update rotation and redraw frame
+    def update_rotation(rotation_angle):
+        calibrator.rotation = rotation_angle
+        if calibrator.bbox is not None:
+            calibrator.frame = calibrator.clone.copy()
+            x, y, w, h = calibrator.bbox
+            cv2.rectangle(
+                calibrator.frame, (x, y), (x + w, y + h), (0, 255, 255), 2
+            )
+            cv2.putText(
+                calibrator.frame,
+                f"Rotation: {calibrator.rotation}° (0/9/1/2 to change) | SPACE to test",
+                (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (0, 255, 255),
+                2,
+            )
+
     while True:
         cv2.imshow("Debug Timer OCR - Select Region", calibrator.frame)
         key = cv2.waitKey(1) & 0xFF
@@ -1064,74 +1083,13 @@ def debug_timer_ocr(video_path: str):
 
         # Rotation keys
         elif key == ord("0"):
-            calibrator.rotation = 0
-            # Redraw frame with updated rotation text
-            if calibrator.bbox is not None:
-                calibrator.frame = calibrator.clone.copy()
-                x, y, w, h = calibrator.bbox
-                cv2.rectangle(
-                    calibrator.frame, (x, y), (x + w, y + h), (0, 255, 255), 2
-                )
-                cv2.putText(
-                    calibrator.frame,
-                    f"Rotation: {calibrator.rotation}° (0/9/1/2 to change) | SPACE to test",
-                    (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.6,
-                    (0, 255, 255),
-                    2,
-                )
+            update_rotation(0)
         elif key == ord("9"):
-            calibrator.rotation = 90
-            if calibrator.bbox is not None:
-                calibrator.frame = calibrator.clone.copy()
-                x, y, w, h = calibrator.bbox
-                cv2.rectangle(
-                    calibrator.frame, (x, y), (x + w, y + h), (0, 255, 255), 2
-                )
-                cv2.putText(
-                    calibrator.frame,
-                    f"Rotation: {calibrator.rotation}° (0/9/1/2 to change) | SPACE to test",
-                    (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.6,
-                    (0, 255, 255),
-                    2,
-                )
+            update_rotation(90)
         elif key == ord("1"):
-            calibrator.rotation = 180
-            if calibrator.bbox is not None:
-                calibrator.frame = calibrator.clone.copy()
-                x, y, w, h = calibrator.bbox
-                cv2.rectangle(
-                    calibrator.frame, (x, y), (x + w, y + h), (0, 255, 255), 2
-                )
-                cv2.putText(
-                    calibrator.frame,
-                    f"Rotation: {calibrator.rotation}° (0/9/1/2 to change) | SPACE to test",
-                    (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.6,
-                    (0, 255, 255),
-                    2,
-                )
+            update_rotation(180)
         elif key == ord("2"):
-            calibrator.rotation = 270
-            if calibrator.bbox is not None:
-                calibrator.frame = calibrator.clone.copy()
-                x, y, w, h = calibrator.bbox
-                cv2.rectangle(
-                    calibrator.frame, (x, y), (x + w, y + h), (0, 255, 255), 2
-                )
-                cv2.putText(
-                    calibrator.frame,
-                    f"Rotation: {calibrator.rotation}° (0/9/1/2 to change) | SPACE to test",
-                    (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.6,
-                    (0, 255, 255),
-                    2,
-                )
+            update_rotation(270)
 
     cv2.destroyAllWindows()
     print("\n👋 Exiting debug mode\n")
