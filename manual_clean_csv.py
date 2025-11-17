@@ -1,3 +1,5 @@
+"""The ultimate traditional programmer vs vibe coder test"""
+
 #!/usr/bin/env python3
 """
 Clean CSV data by removing outlier timestamps and averaging duplicate timestamps.
@@ -24,33 +26,6 @@ from pathlib import Path
 from typing import List, Tuple
 
 
-def detect_outliers_iqr(values: List[float], factor: float = 1.5) -> List[bool]:
-    """Detect outliers using the IQR (Interquartile Range) method.
-
-    Args:
-        values: List of numeric values
-        factor: IQR multiplier for outlier bounds (default: 1.5 for standard outliers)
-
-    Returns:
-        List of booleans where True indicates an outlier
-    """
-    if len(values) <= 3:
-        # Not enough data to detect outliers reliably
-        return [False] * len(values)
-
-    # Calculate quartiles
-    q1 = statistics.quantiles(values, n=4)[0]  # 25th percentile
-    q3 = statistics.quantiles(values, n=4)[2]  # 75th percentile
-    iqr = q3 - q1
-
-    # Define outlier bounds
-    lower_bound = q1 - factor * iqr
-    upper_bound = q3 + factor * iqr
-
-    # Mark outliers
-    return [v < lower_bound or v > upper_bound for v in values]
-
-
 def clean_data(
     data: List[Tuple[float, float]], iqr_factor: float = 1.5
 ) -> Tuple[List[Tuple[float, float]], int]:
@@ -63,43 +38,43 @@ def clean_data(
     Returns:
         Tuple of (cleaned data, number of outliers removed)
     """
-    if len(data) <= 3:
-        # Not enough data to detect outliers - just group by timestamp
-        timestamp_groups = defaultdict(list)
-        for timestamp, position in data:
-            timestamp_groups[timestamp].append(position)
+    # if len(data) <= 3:
+    #     # Not enough data to detect outliers - just group by timestamp
+    #     timestamp_groups = defaultdict(list)
+    #     for timestamp, position in data:
+    #         timestamp_groups[timestamp].append(position)
 
-        cleaned = [
-            (t, statistics.mean(positions))
-            for t, positions in sorted(timestamp_groups.items())
-        ]
-        return cleaned, 0
+    #     cleaned = [
+    #         (t, statistics.mean(positions))
+    #         for t, positions in sorted(timestamp_groups.items())
+    #     ]
+    #     return cleaned, 0
 
-    # Detect outlier timestamps using IQR
-    all_timestamps = [timestamp for timestamp, _ in data]
-    timestamp_outlier_mask = detect_outliers_iqr(all_timestamps, factor=iqr_factor)
+    # # Detect outlier timestamps using IQR
+    # all_timestamps = [timestamp for timestamp, _ in data]
+    # timestamp_outlier_mask = detect_outliers_iqr(all_timestamps, factor=iqr_factor)
 
-    # Filter out data points with outlier timestamps
-    cleaned_data = [
-        (t, p)
-        for (t, p), is_outlier in zip(data, timestamp_outlier_mask)
-        if not is_outlier
-    ]
-    outliers_removed = len(data) - len(cleaned_data)
+    # # Filter out data points with outlier timestamps
+    # cleaned_data = [
+    #     (t, p)
+    #     for (t, p), is_outlier in zip(data, timestamp_outlier_mask)
+    #     if not is_outlier
+    # ]
+    # outliers_removed = len(data) - len(cleaned_data)
 
-    # Group by timestamp and average positions
-    timestamp_groups = defaultdict(list)
-    for timestamp, position in cleaned_data:
-        timestamp_groups[timestamp].append(position)
+    # # Group by timestamp and average positions
+    # timestamp_groups = defaultdict(list)
+    # for timestamp, position in cleaned_data:
+    #     timestamp_groups[timestamp].append(position)
 
-    # Average positions for each timestamp
-    result = []
-    for timestamp in sorted(timestamp_groups.keys()):
-        positions = timestamp_groups[timestamp]
-        avg_position = statistics.mean(positions)
-        result.append((timestamp, avg_position))
+    # # Average positions for each timestamp
+    # result = []
+    # for timestamp in sorted(timestamp_groups.keys()):
+    #     positions = timestamp_groups[timestamp]
+    #     avg_position = statistics.mean(positions)
+    #     result.append((timestamp, avg_position))
 
-    return result, outliers_removed
+    # return result, outliers_removed
 
 
 def main():
@@ -112,12 +87,12 @@ Examples:
   python clean_csv.py data.csv
 
   # Save to file
-  python clean_csv.py data.csv -o cleaned_data.csv --header
+  python clean_csv.py data.csv -o cleaned_data.csv
 
-  # Use more aggressive outlier detection (lower IQR factor)
+  # Use more aggressive outlier detection
   python clean_csv.py data.csv --iqr-factor 1.0
 
-  # Use less aggressive outlier detection (higher IQR factor)
+  # Use less aggressive outlier detection
   python clean_csv.py data.csv --iqr-factor 2.0
 
   # Specify custom delimiter
@@ -126,13 +101,14 @@ Examples:
 Input format:
   CSV file with two columns: timestamp,position
   - First row can be header (auto-detected)
-  - Timestamps may have errors from decimal place misreading
+  - Timestamp values will be grouped
+  - Position values will be cleaned and averaged per timestamp
 
 Output format:
   CSV with one row per unique timestamp
-  - Outlier timestamps removed using IQR method (e.g., 2.407 when others are ~0.1)
-  - Duplicate timestamps averaged
-  - Position values are NEVER filtered as outliers
+  - Two-pass cleaning: global outliers, then per-timestamp averaging
+  - Global pass removes decimal place errors (e.g., 2.407 vs 0.1)
+  - Per-timestamp pass removes outliers within duplicate timestamps
   - Sorted by timestamp
         """,
     )
@@ -157,11 +133,17 @@ Output format:
         "--iqr-factor",
         type=float,
         default=1.5,
-        help="IQR multiplier for timestamp outlier detection. Lower = more aggressive (default: 1.5)",
+        help="IQR multiplier for outlier detection. Lower = more aggressive (default: 1.5)",
     )
 
     parser.add_argument(
         "--header", action="store_true", help="Include header row in output"
+    )
+
+    parser.add_argument(
+        "--no-global-outliers",
+        action="store_true",
+        help="Disable global outlier detection (only detect outliers within timestamp groups)",
     )
 
     args = parser.parse_args()
@@ -221,23 +203,44 @@ Output format:
         sys.exit(1)
 
     # Clean the data
-    cleaned_data, outliers_removed = clean_data(data, iqr_factor=args.iqr_factor)
+    cleaned_data, outliers_removed = clean_data(
+        data,
+        # iqr_factor=args.iqr_factor,
+        # global_outlier_detection=not args.no_global_outliers
+    )
 
     # Report statistics
-    original_count = len(data)
-    cleaned_count = len(cleaned_data)
-
-    print(f"# Original data points: {original_count}", file=sys.stderr)
-    print(f"# Outliers removed: {outliers_removed}", file=sys.stderr)
-    print(f"# Unique timestamps: {cleaned_count}", file=sys.stderr)
-    if cleaned_count > 0:
-        print(
-            f"# Average points per timestamp: {(original_count - outliers_removed) / cleaned_count:.2f}",
-            file=sys.stderr,
-        )
+    # original_count = len(data)
+    # cleaned_count = len(cleaned_data)
 
     for time, position in cleaned_data:
         print(f"{time},{position}")
+
+    # print(f"# Original data points: {original_count}", file=sys.stderr)
+    # print(f"# Outliers removed: {outliers_removed}", file=sys.stderr)
+    # print(f"# Unique timestamps: {cleaned_count}", file=sys.stderr)
+    # if cleaned_count > 0:
+    #     print(
+    #         f"# Average points per timestamp: {(original_count - outliers_removed) / cleaned_count:.2f}",
+    #         file=sys.stderr,
+    #     )
+
+    # # Write output
+    # output_file = sys.stdout if args.output is None else open(args.output, "w")
+
+    # try:
+    #     writer = csv.writer(output_file, delimiter=args.delimiter)
+
+    #     if args.header:
+    #         writer.writerow(["timestamp", "position"])
+
+    #     for timestamp, position in cleaned_data:
+    #         writer.writerow([timestamp, position])
+
+    # finally:
+    #     if args.output is not None:
+    #         output_file.close()
+    #         print(f"# Cleaned data written to: {args.output}", file=sys.stderr)
 
 
 if __name__ == "__main__":

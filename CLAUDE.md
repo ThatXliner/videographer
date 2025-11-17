@@ -50,12 +50,12 @@ python to_csv.py position_data.json -r bbox_bottom -a y -o 1.0 --header > output
 
 ### CSV Data Cleaning
 ```bash
-# Clean CSV data by removing outliers and averaging duplicate timestamps
+# Clean CSV data by removing timestamp outliers and averaging duplicate timestamps
 python clean_csv.py data.csv [options]
 
 # Common options:
 # -o/--output: output file path (default: stdout)
-# --iqr-factor: IQR multiplier for outlier detection (default: 1.5, lower = more aggressive)
+# --iqr-factor: IQR multiplier for timestamp outlier detection (default: 1.5, lower = more aggressive)
 # --header: include CSV header in output
 # --delimiter: CSV delimiter (default comma)
 
@@ -66,11 +66,14 @@ python clean_csv.py raw_data.csv
 # Save cleaned data to file
 python clean_csv.py raw_data.csv -o cleaned_data.csv --header
 
-# More aggressive outlier removal
+# More aggressive timestamp outlier removal
 python clean_csv.py raw_data.csv --iqr-factor 1.0 -o cleaned_data.csv
 
 # Use with use-timer data (common workflow)
 python to_csv.py position_data.json -r bbox_bottom -a y --header | python clean_csv.py /dev/stdin -o cleaned.csv
+
+# Note: Only timestamps are filtered for outliers (e.g., 2.407 vs 0.1)
+# Position values are never filtered - they are only averaged when timestamps match
 ```
 
 ## Architecture
