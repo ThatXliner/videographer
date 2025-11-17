@@ -143,7 +143,7 @@ If you're using the `--use-timer` flag to extract timestamps from an on-screen t
      - Press **ESC** to skip timer tracking
 4. Once OCR passes, timer calibration is complete
 
-The timer region will be highlighted with a **cyan box** in the output video.
+The timer region will be highlighted with a **cyan box** (ignore how it's yellow in the images; those are slightly outdated) in the output video.
 
 > **Note:** Rotation is useful for vertical videos that get rotated during processing. The timer image will be rotated before OCR to ensure digits are upright for proper reading.
 
@@ -201,7 +201,7 @@ The application processes the video automatically:
 #### **Output Video**
 - Bounding box (green rectangle)
 - Reference point marker (red circle with white center)
-- Timer region box (cyan rectangle, if timer enabled)
+- Timer region box (cyan rectangle, if timer enabled; ignore how it's yellow in the images because those are slightly outdated)
 - Position overlay showing pixel and cm coordinates
 - Frame counter
 

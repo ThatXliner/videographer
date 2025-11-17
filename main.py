@@ -617,7 +617,7 @@ class TimerCalibrator:
         # If actively selecting, draw preview rectangle
         if self.selecting and self.start_point and self.end_point:
             cv2.rectangle(
-                self.frame, self.start_point, self.end_point, (0, 255, 255), 2
+                self.frame, self.start_point, self.end_point, (255, 255, 0), 2
             )
             cv2.putText(
                 self.frame,
@@ -625,14 +625,14 @@ class TimerCalibrator:
                 (10, 30),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.7,
-                (0, 255, 255),
+                (255, 255, 0),
                 2,
             )
 
         # If bbox is set, draw final rectangle
         elif self.bbox is not None:
             x, y, w, h = self.bbox
-            cv2.rectangle(self.frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
+            cv2.rectangle(self.frame, (x, y), (x + w, y + h), (255, 255, 0), 2)
             cv2.putText(
                 self.frame,
                 "Press ENTER to confirm, 'r' to reset",
@@ -966,7 +966,7 @@ def debug_timer_ocr(video_path: str):
         if calibrator.bbox is not None:
             calibrator.frame = calibrator.clone.copy()
             x, y, w, h = calibrator.bbox
-            cv2.rectangle(calibrator.frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
+            cv2.rectangle(calibrator.frame, (x, y), (x + w, y + h), (255, 255, 0), 2)
             cv2.putText(
                 calibrator.frame,
                 f"Rotation: {calibrator.rotation}° (0/9/1/2 to change) | SPACE to test",
@@ -1430,7 +1430,7 @@ class ObjectTracker:
                 # Draw timer region if enabled
                 if self.use_timer and self.timer_bbox is not None:
                     tx, ty, tw, th = self.timer_bbox
-                    cv2.rectangle(frame, (tx, ty), (tx + tw, ty + th), (0, 255, 255), 2)
+                    cv2.rectangle(frame, (tx, ty), (tx + tw, ty + th), (255, 255, 0), 2)
 
                 # Add position text
                 ref_name = self.reference_point_name or "bottom-center"
