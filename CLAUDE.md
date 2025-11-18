@@ -76,6 +76,37 @@ python to_csv.py position_data.json -r bbox_bottom -a y --header | python clean_
 # Position values are never filtered - they are only averaged when timestamps match
 ```
 
+### Linear Region Extraction
+```bash
+# Extract linear portion of data by trimming start and end
+python clean_for_linearized.py data.csv [options]
+
+# Common options:
+# -o/--output: output file path (default: stdout)
+# --min-r2: minimum R² threshold for linearity (default: 0.8)
+# --min-points: minimum number of points to keep (default: 3)
+# --header: include CSV header in output
+# --delimiter: CSV delimiter (default comma)
+
+# Examples:
+# Basic usage - extract region with R² >= 0.8
+python clean_for_linearized.py data.csv --header
+
+# More strict linearity requirement
+python clean_for_linearized.py data.csv --min-r2 0.95 -o linear.csv --header
+
+# Very strict - nearly perfect linearity
+python clean_for_linearized.py data.csv --min-r2 0.99 --header
+
+# Combined workflow: clean outliers, then extract linear region
+python clean_csv.py raw_data.csv --header | python clean_for_linearized.py /dev/stdin --min-r2 0.9 -o linear.csv --header
+
+# Use case: Extract constant-velocity portion from motion data
+# - Removes acceleration phase at start
+# - Removes deceleration phase at end
+# - Keeps only the linear (constant velocity) middle section
+```
+
 ## Architecture
 
 ### Core Components
