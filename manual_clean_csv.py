@@ -23,7 +23,21 @@ import statistics
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import List, Tuple
+from typing import Iterator, List, Tuple
+
+
+def compress_duplicates(
+    data: List[Tuple[float, float]],
+) -> Iterator[Tuple[float, float]]:
+    # Phase 1: Compress duplicates
+    last = data[0]
+    for timestamp, position in data:
+        if timestamp == last[0]:
+            last = (timestamp, (last[1] + position) / 2)
+        else:
+            yield last
+            last = (timestamp, position)
+    yield last
 
 
 def clean_data(
@@ -38,6 +52,23 @@ def clean_data(
     Returns:
         Tuple of (cleaned data, number of outliers removed)
     """
+    data = list(compress_duplicates(data))
+    new_data = []
+    for index, row in enumerate(data):
+        if index == 0:
+            new_data.append(row)
+        elif index == len(data) - 1 and row[0] > new_data[-1][0]:
+            new_data.append(row)
+        else:
+            first = new_data[-1][0]
+            second = data[index][0]
+            third = data[index + 1][0]
+
+            if not (first <= second <= third):
+                continue
+            else:
+                new_data.append(row)
+    return new_data, 0
     # if len(data) <= 3:
     #     # Not enough data to detect outliers - just group by timestamp
     #     timestamp_groups = defaultdict(list)
@@ -214,7 +245,7 @@ Output format:
     # cleaned_count = len(cleaned_data)
 
     for time, position in cleaned_data:
-        print(f"{time},{position}")
+        print(f"{time}\t{position}")
 
     # print(f"# Original data points: {original_count}", file=sys.stderr)
     # print(f"# Outliers removed: {outliers_removed}", file=sys.stderr)
