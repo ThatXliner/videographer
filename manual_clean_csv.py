@@ -57,14 +57,18 @@ def clean_data(
     for index, row in enumerate(data):
         if index == 0:
             new_data.append(row)
-        elif index == len(data) - 1 and row[0] > new_data[-1][0]:
-            new_data.append(row)
+        elif index == len(data) - 1:
+            if row[0] > new_data[-1][0]:
+                new_data.append(row)
         else:
             first = new_data[-1][0]
             second = data[index][0]
             third = data[index + 1][0]
 
+            print(first, second, third)
+
             if not (first <= second <= third):
+                print("Ditching")
                 continue
             else:
                 new_data.append(row)
