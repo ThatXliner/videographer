@@ -3,14 +3,16 @@
 Convert position_data.json to CSV format with configurable options.
 """
 
-import json
 import argparse
+import json
 import sys
 from pathlib import Path
 from typing import Optional
 
 
-def extract_position(data_point: dict, reference: str, axis: str, offset: float = 0.0) -> Optional[float]:
+def extract_position(
+    data_point: dict, reference: str, axis: str, offset: float = 0.0
+) -> Optional[float]:
     """Extract position value from data point.
 
     Args:
@@ -23,38 +25,38 @@ def extract_position(data_point: dict, reference: str, axis: str, offset: float 
     Returns:
         Position value in cm, or None if not available
     """
-    if reference == 'position':
+    if reference == "position":
         # Use the tracked reference point
         key = f"position_{axis}_cm"
         value = data_point.get(key)
-    elif reference.startswith('bbox_'):
+    elif reference.startswith("bbox_"):
         # Extract from bounding box
-        bbox = data_point.get('bbox_cm')
+        bbox = data_point.get("bbox_cm")
         if bbox is None:
             return None
 
-        if reference == 'bbox_top':
-            value = bbox.get('y')
-        elif reference == 'bbox_bottom':
-            value = bbox.get('y')
-            if value is not None and bbox.get('h') is not None:
-                value = value + bbox.get('h')
-        elif reference == 'bbox_left':
-            value = bbox.get('x')
-        elif reference == 'bbox_right':
-            value = bbox.get('x')
-            if value is not None and bbox.get('w') is not None:
-                value = value + bbox.get('w')
-        elif reference == 'bbox_center_x':
-            x = bbox.get('x')
-            w = bbox.get('w')
+        if reference == "bbox_top":
+            value = bbox.get("y")
+        elif reference == "bbox_bottom":
+            value = bbox.get("y")
+            if value is not None and bbox.get("h") is not None:
+                value = value + bbox.get("h")
+        elif reference == "bbox_left":
+            value = bbox.get("x")
+        elif reference == "bbox_right":
+            value = bbox.get("x")
+            if value is not None and bbox.get("w") is not None:
+                value = value + bbox.get("w")
+        elif reference == "bbox_center_x":
+            x = bbox.get("x")
+            w = bbox.get("w")
             if x is not None and w is not None:
                 value = x + w / 2
             else:
                 value = None
-        elif reference == 'bbox_center_y':
-            y = bbox.get('y')
-            h = bbox.get('h')
+        elif reference == "bbox_center_y":
+            y = bbox.get("y")
+            h = bbox.get("h")
             if y is not None and h is not None:
                 value = y + h / 2
             else:
@@ -71,9 +73,9 @@ def extract_position(data_point: dict, reference: str, axis: str, offset: float 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Convert position_data.json to CSV format',
+        description="Convert position_data.json to CSV format",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog='''
+        epilog="""
 Examples:
   # Basic usage - extract position data with default settings
   python to_csv.py position_data.json
@@ -95,47 +97,47 @@ Reference options:
   bbox_right      - Right edge of bounding box
   bbox_center_x   - Horizontal center of bounding box
   bbox_center_y   - Vertical center of bounding box
-        '''
+        """,
+    )
+
+    parser.add_argument("input_file", type=Path, help="Path to position_data.json file")
+
+    parser.add_argument(
+        "-r",
+        "--reference",
+        choices=[
+            "position",
+            "bbox_top",
+            "bbox_bottom",
+            "bbox_left",
+            "bbox_right",
+            "bbox_center_x",
+            "bbox_center_y",
+        ],
+        default="position",
+        help="Which reference point to extract (default: position)",
     )
 
     parser.add_argument(
-        'input_file',
-        type=Path,
-        help='Path to position_data.json file'
+        "-a",
+        "--axis",
+        choices=["x", "y"],
+        default="x",
+        help="Which axis to extract: x or y (default: x)",
     )
 
     parser.add_argument(
-        '-r', '--reference',
-        choices=['position', 'bbox_top', 'bbox_bottom', 'bbox_left', 'bbox_right',
-                 'bbox_center_x', 'bbox_center_y'],
-        default='position',
-        help='Which reference point to extract (default: position)'
-    )
-
-    parser.add_argument(
-        '-a', '--axis',
-        choices=['x', 'y'],
-        default='x',
-        help='Which axis to extract: x or y (default: x)'
-    )
-
-    parser.add_argument(
-        '-o', '--offset',
+        "-o",
+        "--offset",
         type=float,
         default=0.0,
-        help='Offset to subtract from position values in cm (default: 0.0)'
+        help="Offset to subtract from position values in cm (default: 0.0)",
     )
 
-    parser.add_argument(
-        '--header',
-        action='store_true',
-        help='Include CSV header row'
-    )
+    parser.add_argument("--header", action="store_true", help="Include CSV header row")
 
     parser.add_argument(
-        '--delimiter',
-        default=',',
-        help='CSV delimiter (default: comma)'
+        "--delimiter", default="\t", help="CSV delimiter (default: tab)"
     )
 
     args = parser.parse_args()
@@ -164,7 +166,10 @@ Reference options:
     # Check if calibration exists
     metadata = data.get("metadata", {})
     if not metadata.get("calibrated", False):
-        print("Warning: Data is not calibrated. Values will be in pixels, not cm.", file=sys.stderr)
+        print(
+            "Warning: Data is not calibrated. Values will be in pixels, not cm.",
+            file=sys.stderr,
+        )
 
     for data_point in tracking_data:
         timestamp = data_point.get("timestamp")
