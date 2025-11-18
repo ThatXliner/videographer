@@ -56,6 +56,10 @@ def clean_data(
 ) -> Tuple[List[Tuple[float, float]], int]:
     """Clean data by detecting outlier timestamps and averaging duplicate timestamps.
 
+    Outlier detection includes:
+    1. IQR-based detection for timestamps far from the main distribution
+    2. Zero timestamps that appear after non-zero timestamps (erroneous resets)
+
     Args:
         data: List of (timestamp, position) tuples
         iqr_factor: IQR multiplier for outlier detection on timestamps
@@ -78,6 +82,15 @@ def clean_data(
     # Detect outlier timestamps using IQR
     all_timestamps = [timestamp for timestamp, _ in data]
     timestamp_outlier_mask = detect_outliers_iqr(all_timestamps, factor=iqr_factor)
+
+    # Additional check: flag zero timestamps that appear after non-zero timestamps
+    seen_nonzero = False
+    for i, (timestamp, _) in enumerate(data):
+        if timestamp > 0:
+            seen_nonzero = True
+        elif timestamp == 0 and seen_nonzero:
+            # Zero appearing after we've seen non-zero timestamps - mark as outlier
+            timestamp_outlier_mask[i] = True
 
     # Filter out data points with outlier timestamps
     cleaned_data = [
