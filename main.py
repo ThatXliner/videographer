@@ -43,7 +43,9 @@ class MeterStickCalibrator:
         self.tick_positions = []
 
         cv2.namedWindow("Calibrate Scale - Mark Reference Stick")
-        cv2.setMouseCallback("Calibrate Scale - Mark Reference Stick", self._mouse_callback)
+        cv2.setMouseCallback(
+            "Calibrate Scale - Mark Reference Stick", self._mouse_callback
+        )
 
         print("\n=== Scale Calibration - Step 1 ===")
         print(f"Reference length: {stick_length_cm} cm")
@@ -156,7 +158,9 @@ class MeterStickCalibrator:
         distance = np.sqrt(dx**2 + dy**2)
 
         # Draw tick marks every 10cm up to stick length
-        num_ticks = int(self.stick_length_cm / 10) + 1  # e.g., 11 ticks for 100cm (0, 10, ..., 100)
+        num_ticks = (
+            int(self.stick_length_cm / 10) + 1
+        )  # e.g., 11 ticks for 100cm (0, 10, ..., 100)
         for i in range(num_ticks):
             t = i / (num_ticks - 1)  # Parameter from 0 to 1
 
@@ -214,7 +218,9 @@ class MeterStickCalibrator:
         dx = self.end_point[0] - self.start_point[0]
         dy = self.end_point[1] - self.start_point[1]
 
-        num_ticks = int(self.stick_length_cm / 10) + 1  # e.g., 11 ticks for 100cm (0, 10, ..., 100)
+        num_ticks = (
+            int(self.stick_length_cm / 10) + 1
+        )  # e.g., 11 ticks for 100cm (0, 10, ..., 100)
         self.tick_positions = []
         for i in range(num_ticks):
             t = i / (num_ticks - 1)
@@ -371,8 +377,8 @@ class ReferencePointSelector:
     }
 
     def __init__(self):
-        self.selected_point = "bottom-center"  # Default
-        self.selected_key = "8"
+        self.selected_point = "center"  # Default
+        self.selected_key = "5"
 
     def select_reference_point(
         self, frame: np.ndarray, bbox: Tuple[int, int, int, int]
