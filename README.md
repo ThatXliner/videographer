@@ -1,166 +1,189 @@
-# VideoGrapher
+<div align="center">
+  <img src="docs/banner.svg" alt="VideoGrapher — turn motion into measurement" width="100%">
 
-> [!NOTE]
-> This app so far is 100% written by AI. That being said, it works.
+  <br>
 
-A Python application for tracking objects in videos with precise position measurements. Features interactive calibration for lens distortion correction, customizable reference points, and exportable position data.
+  <a href="https://github.com/ThatXliner/videographer"><img alt="GitHub repository" src="https://img.shields.io/badge/GitHub-ThatXliner%2Fvideographer-181717?style=flat-square&logo=github"></a>
+  <img alt="Python 3.12+" src="https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white">
+  <img alt="OpenCV" src="https://img.shields.io/badge/Tracking-OpenCV%20CSRT-5C3EE8?style=flat-square&logo=opencv&logoColor=white">
+  <img alt="Package manager: uv" src="https://img.shields.io/badge/Package%20manager-uv-DE5FE9?style=flat-square">
 
-## Citation
+  <p>
+    <strong>Turn ordinary video into calibrated, analysis-ready motion data.</strong><br>
+    Track an object, correct for lens distortion, and export every frame as real-world coordinates.
+  </p>
 
-If you use this software in your research or project, please cite it as:
+  <p>
+    <a href="#quick-start">Quick start</a>
+    ·
+    <a href="#how-it-works">How it works</a>
+    ·
+    <a href="#data-toolkit">Data toolkit</a>
+    ·
+    <a href="#citation">Citation</a>
+  </p>
+</div>
 
-**BibTeX:**
-```bibtex
-@software{hu2025videographer,
-  author = {Hu, Bryan},
-  title = {VideoGrapher: Object Tracking with Lens Distortion Correction},
-  year = {2025},
-  url = {https://github.com/ThatXliner/videographer},
-  version = {0.1.0}
-}
-```
+---
 
-**APA:**
-```
-Hu, B. (2025). VideoGrapher: Object Tracking with Lens Distortion Correction (Version 0.1.0) [Computer software]. https://github.com/ThatXliner/videographer
-```
+VideoGrapher is a focused, interactive alternative to heavyweight video-analysis
+software. Give it a video and a known-length reference stick; it gives you a
+tracked video plus timestamped position data in pixels and centimeters.
 
-**MLA:**
-```
-Hu, Bryan. VideoGrapher: Object Tracking with Lens Distortion Correction. Version 0.1.0, 2025, https://github.com/ThatXliner/videographer.
-```
+It is especially handy for classroom physics, motion experiments, and quick
+computer-vision measurements where lens distortion makes a single pixels-per-cm
+ratio too crude.
 
-See also: [CITATION.cff](CITATION.cff)
+## Why VideoGrapher?
 
-## Features
+| | Capability | What you get |
+|:--:|---|---|
+| 🎯 | **CSRT object tracking** | Robust frame-by-frame tracking from one hand-drawn bounding box |
+| 📐 | **Interactive calibration** | A known-length ruler becomes a real-world coordinate system |
+| 🪄 | **Distortion correction** | Draggable 10 cm ticks create a local, piecewise-linear scale |
+| ⊹ | **Nine reference points** | Track any corner, edge midpoint, or the center of the object |
+| 📦 | **Useful artifacts** | An annotated MP4 and a structured `position_data.json` |
+| 📈 | **Analysis pipeline** | Export CSV, reject timestamp noise, and isolate linear motion |
 
-### 🎯 Object Tracking
-- Interactive object selection via mouse-drawn bounding box
-- Frame-by-frame tracking using OpenCV CSRT tracker
-- 9 selectable reference points on the bounding box (corners, edges, center)
-- Visual output video with tracking overlay
+> [!IMPORTANT]
+> VideoGrapher uses interactive OpenCV windows and requires a graphical desktop.
+> The object must be visible in the video's first frame.
 
-### 📏 Scale Calibration
-- Interactive meter stick calibration with real-world measurements
-- **Adjustable tick marks** for lens distortion correction
-- Piecewise linear interpolation between tick marks for accurate measurements
-- Visual tick mark display (every 10cm with labels)
+## Quick start
 
-### 📊 Data Export
-- JSON export with comprehensive position data
-- CSV converter with flexible options
-- Both pixel and centimeter measurements
-- Frame-by-frame timestamp tracking
+### 1. Install
 
-## Installation
+[`uv`](https://docs.astral.sh/uv/) is the shortest path:
 
-### Using `uv` (recommended)
 ```bash
+git clone https://github.com/ThatXliner/videographer.git
+cd videographer
 uv sync
 ```
 
-### Using `pip`
-```bash
-pip install opencv-contrib-python>=4.8.0 numpy>=1.24.0
-```
-
-## Usage
-
-### Basic Tracking
+Or create your own Python 3.12+ environment and install the two runtime
+dependencies:
 
 ```bash
-python main.py <input_video_path> [output_video_path] [options]
+python -m pip install "opencv-contrib-python>=4.8.0" "numpy>=1.24.0"
 ```
-
-**Options:**
-- `--stick-length LENGTH`: Length of reference stick in centimeters (default: 100.0)
-- `--no-calibrate`: Skip calibration step (track in pixels only)
-
-**Examples:**
-```bash
-# Basic usage with 1-meter stick
-python main.py input.mp4 tracked_output.mp4
-
-# Using a 30cm ruler
-python main.py input.mp4 tracked_output.mp4 --stick-length 30
-
-# Skip calibration (pixel tracking only)
-python main.py input.mp4 tracked_output.mp4 --no-calibrate
-```
-
-### Workflow
-
-The application guides you through an interactive workflow:
-
-#### **Step 1: Scale Calibration**
-
-Mark the reference stick endpoints:
-1. Click at one end of the reference stick (0cm mark)
-2. Click at the other end (e.g., 100cm for a meter stick, 30cm for a ruler)
-3. Press **ENTER** to continue
-
-Adjust tick marks for lens distortion:
-1. Tick marks appear at 10cm intervals along the reference stick
-2. **Click and drag** any tick mark to adjust its position
-3. Align ticks with the actual ruler markings in your video
-4. Press **ENTER** when satisfied
-
-![Calibration UI](docs/calibration.png)
-
-> **Tip:** This step corrects for lens distortion. If your video has fisheye or other distortion, adjust the outer tick marks to match the curved ruler.
-
-#### **Step 2: Select Object**
-
-1. Click and drag to draw a bounding box around your object
-2. Press **ENTER** to confirm
-3. Press **'r'** to reset if needed
-
-#### **Step 3: Choose Reference Point**
-
-Select which point on the bounding box to track:
-
-```
-1: Top-Left      2: Top-Center      3: Top-Right
-4: Center-Left   5: Center          6: Center-Right
-7: Bottom-Left   8: Bottom-Center   9: Bottom-Right
-```
-
-- Press the number key (1-9) to select
-- Default is **8 (Bottom-Center)**
-- Press **ENTER** to confirm
-
-#### **Step 4: Track Object**
 
 > [!NOTE]
-> Caveat: The object that will be tracked must be present in the first frame
+> Use `opencv-contrib-python`, not `opencv-python`: the tracker depends on the
+> contrib build's CSRT implementation.
 
-The application processes the video automatically:
-- Progress updates every 30 frames
-- Creates output video with tracking overlay
-- Generates `position_data.json`
+### 2. Track
 
-### Output Files
+```bash
+uv run main.py input.mp4 tracked.mp4
+```
 
-#### **Output Video**
-- Bounding box (green rectangle)
-- Reference point marker (red circle with white center)
-- Position overlay showing pixel and cm coordinates
-- Frame counter
+VideoGrapher opens a guided interface:
 
-#### **position_data.json**
+1. Mark both ends of a reference stick.
+2. Drag the generated ticks onto the stick's real markings.
+3. Draw a tight box around the object.
+4. Choose the point on that box you want to measure.
+5. Let the tracker process the video.
 
-Comprehensive tracking data with metadata:
+When it finishes, the working directory contains:
+
+```text
+tracked.mp4          annotated video with bounding box and position overlay
+position_data.json   timestamps, coordinates, bounding boxes, and calibration
+```
+
+### 3. Export
+
+Extract the tracked horizontal position as tab-separated data:
+
+```bash
+uv run to_csv.py position_data.json --axis x --header > position.tsv
+```
+
+Or extract the bottom of the box on the vertical axis, subtracting a 1 cm
+offset:
+
+```bash
+uv run to_csv.py position_data.json \
+  --reference bbox_bottom \
+  --axis y \
+  --offset 1 \
+  --header > position.tsv
+```
+
+## How it works
+
+```text
+┌──────────────┐    ┌────────────────┐    ┌──────────────┐    ┌─────────────┐
+│ Mark a ruler │ →  │ Adjust 10 cm   │ →  │ Select and   │ →  │ Export MP4 │
+│ in frame 1   │    │ calibration    │    │ track object │    │ + JSON     │
+└──────────────┘    └────────────────┘    └──────────────┘    └─────────────┘
+       pixels       local scale in cm       CSRT per frame       analysis
+```
+
+### Calibration that bends with the image
+
+A single global scale assumes every centimeter occupies the same number of
+pixels. Real lenses often break that assumption.
+
+VideoGrapher divides the reference stick into 10 cm segments. You can drag each
+tick to its observed position, giving every segment its own local scale. For a
+tracked point, the app finds the nearest segment, projects the point onto it,
+interpolates the along-stick coordinate, and uses that segment's scale for the
+perpendicular distance.
+
+This approximation handles moderate barrel, pincushion, fisheye, and perspective
+distortion without requiring a full camera-calibration rig.
+
+> [!TIP]
+> Put the reference stick in the same plane as the motion. Calibration cannot
+> compensate for depth differences between the ruler and the tracked object.
+
+### Pick the point that matches the experiment
+
+```text
+1  top-left       2  top-center       3  top-right
+4  center-left    5  center           6  center-right
+7  bottom-left    8  bottom-center    9  bottom-right
+```
+
+The default is **bottom-center**, which works well for an object moving along a
+surface. Use the center for projectile motion, or an edge when measuring a
+leading/trailing boundary.
+
+## Command reference
+
+```bash
+uv run main.py VIDEO [OUTPUT] [--stick-length CM] [--no-calibrate]
+```
+
+| Argument | Default | Description |
+|---|---:|---|
+| `VIDEO` | required | Input video path |
+| `OUTPUT` | `output.mp4` | Annotated output video path |
+| `--stick-length CM` | `100.0` | Length of the visible reference stick |
+| `--no-calibrate` | off | Skip calibration and retain pixel-only tracking |
+
+During selection, press <kbd>Enter</kbd> to confirm, <kbd>R</kbd> to reset, or
+<kbd>Esc</kbd> to cancel. During tracking, press <kbd>Q</kbd> to stop early.
+
+## Output data
+
+`position_data.json` preserves both the experiment metadata and the per-frame
+measurements:
 
 ```json
 {
   "metadata": {
     "video_path": "input.mp4",
+    "output_path": "tracked.mp4",
     "total_frames": 300,
     "calibrated": true,
     "reference_point": "bottom-center",
     "calibration": {
       "reference_length_cm": 100.0,
-      "tick_positions": [[x1, y1, 0], [x2, y2, 10], ...],
+      "tick_positions": [[120, 640, 0], [198, 632, 10]],
       "method": "piecewise linear interpolation with lens distortion correction"
     }
   },
@@ -175,185 +198,116 @@ Comprehensive tracking data with metadata:
       "position_y_cm": 58.3,
       "bbox_pixels": {"x": 280, "y": 400, "w": 80, "h": 50},
       "bbox_cm": {"x": 37.2, "y": 51.8, "w": 10.6, "h": 6.5}
-    },
-    ...
+    }
   ]
 }
 ```
 
-**Data Fields:**
-- `frame`: Frame number (0-indexed)
-- `timestamp`: Time in seconds
-- `reference_point`: Which point was tracked
-- `position_x/y_pixels`: Pixel coordinates of reference point
-- `position_x/y_cm`: Real-world coordinates in centimeters
-- `bbox_pixels/cm`: Bounding box in both units
+Pixel values are always retained. Centimeter fields and `bbox_cm` are populated
+when calibration is enabled.
 
-## CSV Export
+## Data toolkit
 
-Convert JSON data to CSV with flexible options:
+The repository includes three small command-line tools for moving from raw
+tracking output to analysis-ready data.
+
+### JSON → delimited data
 
 ```bash
-python to_csv.py position_data.json [options]
+uv run to_csv.py position_data.json [options]
 ```
 
-### Options
+| Option | Default | Description |
+|---|---:|---|
+| `-r`, `--reference` | `position` | `position`, a box edge, or a box center |
+| `-a`, `--axis` | `x` | Extract the `x` or `y` axis |
+| `-o`, `--offset` | `0.0` | Subtract an offset from each position |
+| `--header` | off | Include `timestamp` and `position_cm` |
+| `--delimiter` | tab | Output delimiter |
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `-r, --reference` | Reference point to extract | `position` |
-| `-a, --axis` | Axis to extract (x or y) | `x` |
-| `-o, --offset` | Offset to subtract (cm) | `0.0` |
-| `--header` | Include CSV header | Off |
-| `--delimiter` | CSV delimiter | `,` |
+Available box references are `bbox_top`, `bbox_bottom`, `bbox_left`,
+`bbox_right`, `bbox_center_x`, and `bbox_center_y`.
 
-### Reference Point Options
+### Clean noisy timestamps
 
-- `position` - Use the tracked reference point (default)
-- `bbox_top` - Top edge of bounding box
-- `bbox_bottom` - Bottom edge of bounding box
-- `bbox_left` - Left edge of bounding box
-- `bbox_right` - Right edge of bounding box
-- `bbox_center_x` - Horizontal center of bounding box
-- `bbox_center_y` - Vertical center of bounding box
+`clean_csv.py` removes global timestamp outliers with the IQR rule, rejects
+erroneous zero resets, and averages positions that share a timestamp.
 
-### Examples
-
-**Basic usage:**
 ```bash
-python to_csv.py position_data.json
+uv run clean_csv.py raw.csv --header -o cleaned.csv
 ```
 
-**Extract bottom of bounding box with 1cm offset:**
+Tune detection with `--iqr-factor` (lower is more aggressive), or disable the
+global pass with `--no-global-outliers`.
+
+### Isolate constant-velocity motion
+
+`clean_for_linearized.py` trims the beginning and end until it finds the longest
+region meeting an R² threshold:
+
 ```bash
-python to_csv.py position_data.json -r bbox_bottom -a y -o 1.0
+uv run clean_for_linearized.py cleaned.csv \
+  --min-r2 0.95 \
+  --min-points 5 \
+  --header \
+  -o linear.csv
 ```
 
-**With header, save to file:**
+The tools compose cleanly:
+
 ```bash
-python to_csv.py position_data.json --header > output.csv
+uv run clean_csv.py raw.csv --header |
+  uv run clean_for_linearized.py /dev/stdin --min-r2 0.9 --header -o linear.csv
 ```
 
-**Tab-delimited output:**
-```bash
-python to_csv.py position_data.json --delimiter $'\t' > output.tsv
-```
+## Getting better measurements
 
-**Get help:**
-```bash
-python to_csv.py --help
-```
+- Lock the camera on a tripod and avoid changing zoom or focus mid-shot.
+- Keep the ruler parallel to—and in the same plane as—the motion.
+- Use bright, even lighting and a fast shutter to reduce motion blur.
+- Select a compact bounding box with distinctive visual features.
+- Align calibration ticks carefully; they determine the local scale.
+- Validate a short test clip before processing a long recording.
 
-## Advanced Features
+CSRT can tolerate some scale change and partial occlusion, but it is still a
+single-object visual tracker. Severe occlusion, abrupt appearance changes, or an
+object leaving the frame can cause tracking loss.
 
-### Lens Distortion Correction
+## Project map
 
-The adjustable tick marks allow you to correct for lens distortion:
-
-1. After marking the meter stick endpoints, tick marks appear
-2. Drag each tick to align with the actual ruler markings
-3. The system uses **piecewise linear interpolation** between ticks
-4. Each position is converted using the local scale at that point
-
-This provides accurate measurements even with:
-- Fisheye lenses
-- Barrel/pincushion distortion
-- Non-uniform scaling across the frame
-
-### How Distortion Correction Works
-
-The calibration system approximates lens distortion using **piecewise linear interpolation**:
-
-1. Stores adjusted positions for all 11 tick marks (0-100cm)
-2. For each tracked point, finds the closest ruler segment (between two ticks)
-3. Projects the point onto that segment
-4. Uses **linear interpolation** within that segment based on local tick positions
-5. Calculates perpendicular distance using the local scale (cm/pixel ratio)
-
-**What this means:** The ruler is divided into 10 segments (0-10cm, 10-20cm, etc.). Each segment can have its own scale, allowing the system to approximate curved distortion by chaining together straight segments. More tick marks = better approximation of smooth nonlinear distortion.
-
-**Limitations:** This works well for moderate barrel/pincushion/fisheye distortion, but cannot capture rapid distortion changes within a 10cm segment. For extreme distortion, you'd need more tick marks or a parametric lens model.
-
-### Customizable Reference Points
-
-Choose the most appropriate tracking point for your analysis:
-- **Bottom-center**: Good for tracking objects moving along a surface
-- **Center**: Good for projectile motion or general tracking
-- **Top/Bottom edges**: For measuring object heights
-- **Left/Right edges**: For measuring widths or leading/trailing edges
-
-## Tips for Best Results
-
-### Camera Setup
-- Mount camera on stable tripod
-- Use a narrow lens to minimize distortion (e.g. 2x optical zoom)
-- Keep meter stick parallel to the plane of motion
-- Ensure good lighting and contrast
-- Avoid motion blur (use faster shutter speed)
-
-### Calibration
-- Use a high-contrast meter stick that's clearly visible
-- Place the meter stick in the same plane as object motion
-<!--- If using adjustable ticks, zoom in to align precisely-->
-- Take time to adjust distorted tick marks carefully
-
-### Object Selection
-<!--- Draw bounding box tightly around the object
-- Include distinctive features for better tracking-->
-- Choose a reference point that's consistently visible
-- Test tracking on a few frames first
-
-<!--### Troubleshooting
-- **Tracking lost**: Object may be too small or moving too fast
-- **Inaccurate measurements**: Check tick mark alignment
-- **Jittery tracking**: Try smaller bounding box or different tracker settings-->
-
-## Technical Details
-
-### Dependencies
-- **opencv-contrib-python**: CSRT tracker and video I/O
-<!--- **norfair**: Object tracking framework (currently used minimally)-->
-- **numpy**: Numerical operations
-
-### Tracking Algorithm
-- Uses OpenCV's CSRT (Channel and Spatial Reliability Tracking) tracker
-- Initializes on user-selected bounding box
-- Updates frame-by-frame with adaptive model
-- Handles scale changes and partial occlusions
-
-### Coordinate System
-- Origin (0, 0) is at the **start point** of the meter stick
-- X-axis runs along the meter stick direction
-- Y-axis is perpendicular distance from the ruler
-- All measurements in centimeters after calibration
-
-## Project Structure
-
-```
+```text
 videographer/
-├── main.py              # Main tracking application
-├── to_csv.py           # CSV export tool
-├── position_data.json  # Generated tracking data (gitignored)
-├── output.mp4          # Generated output video (gitignored)
-├── pyproject.toml      # Project dependencies
-└── README.md           # This file
+├── main.py                  interactive calibration and tracking
+├── to_csv.py                JSON-to-delimited-data exporter
+├── clean_csv.py             timestamp cleanup and duplicate averaging
+├── manual_clean_csv.py      alternate/manual cleanup utility
+├── clean_for_linearized.py  linear-region extraction
+├── pyproject.toml           Python metadata and dependencies
+└── CITATION.cff             machine-readable citation metadata
 ```
+
+## Citation
+
+If VideoGrapher helps your research, class, or project, please cite it:
+
+```bibtex
+@software{hu2025videographer,
+  author  = {Hu, Bryan},
+  title   = {VideoGrapher: Object Tracking with Lens Distortion Correction},
+  year    = {2025},
+  version = {0.1.0},
+  url     = {https://github.com/ThatXliner/videographer}
+}
+```
+
+Citation metadata is also available in [`CITATION.cff`](CITATION.cff).
 
 ## Contributing
 
-Suggestions and improvements welcome! Key areas for enhancement:
-- Additional tracker algorithms
-- Automatic object detection
-- Multi-object tracking
-- Real-time preview during tracking
-- GUI application
+Issues and pull requests are welcome. High-impact directions include automatic
+object detection, multiple-object tracking, alternate trackers, and a unified
+desktop interface.
 
-## License
-
-MIT License - feel free to use for research, education, or commercial projects.
-
-## Acknowledgments
-
-- OpenCV for computer vision tools
-<!--- Norfair for tracking framework-->
-- CSRT tracker algorithm by Lukežič et al.
+<div align="center">
+  <sub>Built with Python, OpenCV, and an unreasonable enthusiasm for plotting things that move.</sub>
+</div>

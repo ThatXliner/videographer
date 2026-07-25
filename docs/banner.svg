@@ -1,0 +1,92 @@
+<svg width="1200" height="420" viewBox="0 0 1200 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="70" y1="15" x2="1130" y2="405" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#090D1B"/>
+      <stop offset="0.56" stop-color="#10162A"/>
+      <stop offset="1" stop-color="#17102B"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="110" y1="0" x2="955" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#58E6D9"/>
+      <stop offset="0.55" stop-color="#7C8CFF"/>
+      <stop offset="1" stop-color="#F15BB5"/>
+    </linearGradient>
+    <linearGradient id="plot" x1="700" y1="120" x2="1080" y2="300" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#58E6D9"/>
+      <stop offset="1" stop-color="#F15BB5"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(995 170) rotate(153) scale(430 300)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7257FF" stop-opacity=".24"/>
+      <stop offset="1" stop-color="#7257FF" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#000" flood-opacity=".32"/>
+    </filter>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" stroke="#A9B7D6" stroke-opacity=".055"/>
+    </pattern>
+    <clipPath id="panel">
+      <rect x="670" y="58" width="446" height="304" rx="22"/>
+    </clipPath>
+  </defs>
+
+  <rect width="1200" height="420" rx="28" fill="url(#bg)"/>
+  <rect width="1200" height="420" rx="28" fill="url(#grid)"/>
+  <rect width="1200" height="420" rx="28" fill="url(#glow)"/>
+  <rect x="1" y="1" width="1198" height="418" rx="27" stroke="#B9C3E2" stroke-opacity=".13" stroke-width="2"/>
+
+  <g opacity=".5">
+    <circle cx="64" cy="58" r="5" fill="#FF6B7A"/>
+    <circle cx="82" cy="58" r="5" fill="#FFD166"/>
+    <circle cx="100" cy="58" r="5" fill="#58E6D9"/>
+  </g>
+
+  <g transform="translate(84 106)">
+    <rect width="42" height="42" rx="10" fill="#58E6D9" fill-opacity=".12" stroke="#58E6D9" stroke-opacity=".4"/>
+    <path d="M11 14.5L21 9L31 14.5V27.5L21 33L11 27.5V14.5Z" stroke="#58E6D9" stroke-width="2"/>
+    <circle cx="21" cy="21" r="4.5" fill="#58E6D9"/>
+  </g>
+
+  <text x="84" y="202" fill="#F4F7FF" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="64" font-weight="760" letter-spacing="-2.6">VideoGrapher</text>
+  <rect x="84" y="225" width="492" height="5" rx="2.5" fill="url(#accent)"/>
+  <text x="84" y="278" fill="#AEB9D8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" font-weight="600" letter-spacing="3.2">TURN MOTION INTO MEASUREMENT</text>
+  <text x="84" y="322" fill="#707D9F" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="17">Calibrate · Track · Export · Analyze</text>
+
+  <g filter="url(#shadow)">
+    <rect x="670" y="58" width="446" height="304" rx="22" fill="#0A1020" stroke="#9CA9D0" stroke-opacity=".15"/>
+    <g clip-path="url(#panel)">
+      <path d="M700 302H1085M700 254H1085M700 206H1085M700 158H1085M700 110H1085" stroke="#9CA9D0" stroke-opacity=".09"/>
+      <path d="M732 86V334M796 86V334M860 86V334M924 86V334M988 86V334M1052 86V334" stroke="#9CA9D0" stroke-opacity=".09"/>
+
+      <path d="M716 304C755 302 767 286 798 283C830 280 844 256 871 244C899 232 918 205 944 198C971 190 986 164 1015 152C1042 141 1066 113 1092 96" stroke="#7759FF" stroke-opacity=".18" stroke-width="19" filter="url(#soft)"/>
+      <path d="M716 304C755 302 767 286 798 283C830 280 844 256 871 244C899 232 918 205 944 198C971 190 986 164 1015 152C1042 141 1066 113 1092 96" stroke="url(#plot)" stroke-width="4" stroke-linecap="round"/>
+
+      <g fill="#0A1020" stroke-width="3">
+        <circle cx="716" cy="304" r="6" stroke="#58E6D9"/>
+        <circle cx="798" cy="283" r="6" stroke="#63D3DF"/>
+        <circle cx="871" cy="244" r="6" stroke="#6EB5E9"/>
+        <circle cx="944" cy="198" r="6" stroke="#8990F8"/>
+        <circle cx="1015" cy="152" r="6" stroke="#B070DB"/>
+        <circle cx="1092" cy="96" r="6" stroke="#F15BB5"/>
+      </g>
+
+      <rect x="817" y="131" width="116" height="93" rx="8" stroke="#58E6D9" stroke-width="2" stroke-dasharray="7 6"/>
+      <path d="M817 145H933M831 131V224M919 131V224" stroke="#58E6D9" stroke-opacity=".25"/>
+      <circle cx="875" cy="224" r="7" fill="#F4F7FF" stroke="#F15BB5" stroke-width="3"/>
+
+      <g stroke="#667394" stroke-width="2">
+        <path d="M706 335H1084"/>
+        <path d="M720 328V342M756 331V339M792 328V342M828 331V339M864 328V342M900 331V339M936 328V342M972 331V339M1008 328V342M1044 331V339M1080 328V342"/>
+      </g>
+      <text x="704" y="324" fill="#58E6D9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">0 cm</text>
+      <text x="1050" y="324" fill="#F15BB5" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">100</text>
+    </g>
+  </g>
+
+  <g transform="translate(1066 378)">
+    <circle r="3" fill="#58E6D9"/>
+    <circle r="9" stroke="#58E6D9" stroke-opacity=".25"/>
+  </g>
+</svg>
