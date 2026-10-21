@@ -311,3 +311,5 @@ desktop interface.
 <div align="center">
   <sub>Built with Python, OpenCV, and an unreasonable enthusiasm for plotting things that move.</sub>
 </div>
+
+HTTP and HTTPS video URLs are downloaded to a temporary file before tracking. HTTPS downloads use certifi's certificate bundle. The video backend reads local files only, so playlists that reference network segments are not supported.
