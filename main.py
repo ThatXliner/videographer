@@ -1,4 +1,19 @@
 import json
+import os
+from pathlib import Path
+import shutil
+import ssl
+import tempfile
+from urllib.parse import urlsplit
+from urllib.request import urlopen
+
+import certifi
+
+# FFmpeg decodes local data. URL downloads use the context below.
+capture_options = os.environ.get("OPENCV_FFMPEG_CAPTURE_OPTIONS", "").rstrip("|")
+os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "|".join(
+    filter(None, [capture_options, "protocol_whitelist;file,crypto,data"])
+)
 
 # from norfair import Detection, Tracker, Video
 from typing import List, Optional, Tuple
@@ -574,7 +589,17 @@ class ObjectTracker:
     """Tracks a selected object in a video and outputs position data."""
 
     def __init__(self, video_path: str, output_path: str = "output.mp4"):
+        self.source_path = video_path
         self.video_path = video_path
+        self._download_dir = None
+        if urlsplit(video_path).scheme.lower() in {"http", "https"}:
+            self._download_dir = tempfile.TemporaryDirectory(prefix="videographer-")
+            local_path = Path(self._download_dir.name) / "video"
+            context = ssl.create_default_context(cafile=certifi.where())
+            with urlopen(video_path, context=context, timeout=60) as response:
+                with local_path.open("wb") as output:
+                    shutil.copyfileobj(response, output)
+            self.video_path = str(local_path)
         self.output_path = output_path
         self.position_data = []
         self.calibration_data = None  # Dict with tick positions
@@ -591,7 +616,7 @@ class ObjectTracker:
         Returns:
             True if calibration successful, False otherwise
         """
-        cap = cv2.VideoCapture(self.video_path)
+        cap = cv2.VideoCapture(self.video_path, cv2.CAP_FFMPEG)
         ret, frame = cap.read()
         cap.release()
 
@@ -680,7 +705,7 @@ class ObjectTracker:
 
     def select_object(self) -> Optional[Tuple[int, int, int, int]]:
         """Allow user to select object with mouse by drawing a bounding box."""
-        cap = cv2.VideoCapture(self.video_path)
+        cap = cv2.VideoCapture(self.video_path, cv2.CAP_FFMPEG)
         ret, frame = cap.read()
         cap.release()
 
@@ -701,7 +726,7 @@ class ObjectTracker:
         Returns:
             True if selection successful, False otherwise
         """
-        cap = cv2.VideoCapture(self.video_path)
+        cap = cv2.VideoCapture(self.video_path, cv2.CAP_FFMPEG)
         ret, frame = cap.read()
         cap.release()
 
@@ -718,7 +743,7 @@ class ObjectTracker:
     def track_object(self, initial_bbox: Tuple[int, int, int, int]):
         """Track the object through the video and create output with bounding boxes."""
         # Initialize OpenCV tracker
-        cap = cv2.VideoCapture(self.video_path)
+        cap = cv2.VideoCapture(self.video_path, cv2.CAP_FFMPEG)
         fps = cap.get(cv2.CAP_PROP_FPS)
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -726,7 +751,7 @@ class ObjectTracker:
 
         # Initialize video writer
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-        out = cv2.VideoWriter(self.output_path, fourcc, fps, (width, height))
+        out = cv2.VideoWriter(str(Path(self.output_path).absolute()), fourcc, fps, (width, height))
 
         # Read first frame and initialize tracker
         ret, frame = cap.read()
@@ -939,7 +964,7 @@ class ObjectTracker:
         """Save the position data to a JSON file."""
         output_data = {
             "metadata": {
-                "video_path": self.video_path,
+                "video_path": self.source_path,
                 "output_path": self.output_path,
                 "total_frames": len(self.position_data),
                 "calibrated": self.calibration_data is not None,
