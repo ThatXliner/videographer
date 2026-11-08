@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="description"
+      content="Track an object in a video and export calibrated position data, right in your browser."
+    />
+    <title>VideoGrapher</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="./">VideoGrapher</a>
+      <a class="repo-link" href="https://github.com/ThatXliner/videographer">GitHub</a>
+    </header>
+
+    <main>
+      <nav aria-label="Progress">
+        <ol class="steps" id="steps">
+          <li data-step="load">Video</li>
+          <li data-step="calibrateEndpoints">Mark stick</li>
+          <li data-step="calibrateTicks">Adjust ticks</li>
+          <li data-step="selectObject">Object</li>
+          <li data-step="selectReference">Point</li>
+          <li data-step="tracking">Track</li>
+          <li data-step="results">Results</li>
+        </ol>
+      </nav>
+
+      <section class="panel load-panel" data-panel="load">
+        <h1>Turn motion into measurement</h1>
+        <p class="lede">
+          Track an object through a video, calibrate with a ruler, and export position data in
+          centimeters.
+        </p>
+        <label class="dropzone" id="dropzone">
+          <input type="file" id="file-input" accept="video/*" />
+          <span class="dropzone-title">Drop a video here or choose a file</span>
+          <span class="dropzone-hint">MP4 (H.264) and WebM work in every modern browser.</span>
+        </label>
+        <p class="privacy">
+          Your video never leaves your device. Everything runs locally in this browser tab.
+        </p>
+        <p class="hint">
+          Tracking uses OpenCV's MIL tracker via OpenCV.js (about 10 MB, fetched once from
+          jsDelivr). The command-line tool uses CSRT, so results can differ slightly.
+        </p>
+        <p class="error" id="load-error" role="alert" hidden></p>
+
+        <div class="video-info" id="video-info" hidden>
+          <dl>
+            <div><dt>File</dt><dd id="info-name"></dd></div>
+            <div><dt>Size</dt><dd id="info-size"></dd></div>
+            <div><dt>Duration</dt><dd id="info-duration"></dd></div>
+          </dl>
+          <label class="field">
+            <span>Frame rate (fps)</span>
+            <input type="number" id="fps-input" min="1" max="1000" step="any" inputmode="decimal" />
+            <small id="fps-hint">Detected from playback. Correct it if you know better.</small>
+          </label>
+          <div class="actions">
+            <button type="button" class="primary" id="start-calibration">Calibrate with a ruler</button>
+            <button type="button" id="skip-calibration">Skip, track in pixels</button>
+          </div>
+        </div>
+      </section>
+
+      <div class="workspace" id="workspace" hidden>
+        <div class="stage" id="stage-wrap">
+          <canvas id="stage" aria-label="Video frame"></canvas>
+          <canvas id="loupe" class="loupe" width="128" height="128" hidden></canvas>
+          <div class="scrubber" id="scrubber" hidden>
+            <label for="frame-slider" class="visually-hidden">Frame</label>
+            <input type="range" id="frame-slider" min="0" value="0" step="1" />
+          </div>
+        </div>
+
+        <aside class="panel side-panel">
+          <div data-panel="calibrateEndpoints">
+            <h2>Mark the reference stick</h2>
+            <p>Tap or click each end of the ruler. Drag an end to fine-tune it.</p>
+            <label class="field">
+              <span>Stick length (cm)</span>
+              <input type="number" id="stick-length" min="10" step="any" value="100" inputmode="decimal" />
+              <small>Ticks are placed every 10 cm.</small>
+            </label>
+            <p class="status" id="endpoints-status" aria-live="polite"></p>
+          </div>
+
+          <div data-panel="calibrateTicks">
+            <h2>Adjust the tick marks</h2>
+            <p>
+              Drag each tick onto the matching mark on the ruler. This corrects for lens distortion
+              and perspective.
+            </p>
+          </div>
+
+          <div data-panel="selectObject">
+            <h2>Select the object</h2>
+            <p>Drag a box around the object you want to track. It must be visible in this first frame.</p>
+            <p class="status" id="object-status" aria-live="polite"></p>
+          </div>
+
+          <div data-panel="selectReference">
+            <h2>Choose a reference point</h2>
+            <p>Pick which point on the box to measure. Tap a point or press 1 to 9.</p>
+            <div class="ref-grid" id="ref-grid" role="radiogroup" aria-label="Reference point"></div>
+          </div>
+
+          <div data-panel="tracking">
+            <h2>Tracking</h2>
+            <progress id="track-progress" max="1" value="0"></progress>
+            <p class="status" id="track-status" aria-live="polite"></p>
+            <p class="error" id="track-error" role="alert" hidden></p>
+            <p class="hint">Cancel keeps the frames tracked so far.</p>
+          </div>
+
+          <div data-panel="results">
+            <h2>Results</h2>
+            <p class="status" id="results-summary"></p>
+            <p class="readout" id="results-readout" aria-live="polite"></p>
+            <div class="plot" id="plot"></div>
+            <ul class="legend" aria-hidden="true">
+              <li class="legend-x">x</li>
+              <li class="legend-y">y</li>
+            </ul>
+            <div class="actions">
+              <button type="button" id="download-csv">Download CSV</button>
+              <button type="button" id="new-video">New video</button>
+            </div>
+            <p class="hint">
+              The JSON matches the command-line tool's <code>position_data.json</code>, so
+              <code>to_csv.py</code> and the other scripts work on it.
+            </p>
+          </div>
+
+          <div class="actions step-actions">
+            <button type="button" id="back">Back</button>
+            <button type="button" id="reset">Reset</button>
+            <button type="button" class="primary" id="primary"></button>
+          </div>
+          <p class="keys">
+            <kbd>Enter</kbd> confirm · <kbd>Esc</kbd> back · <kbd>R</kbd> reset
+          </p>
+        </aside>
+      </div>
+    </main>
+  </body>
+</html>
