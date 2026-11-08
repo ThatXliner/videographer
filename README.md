@@ -46,8 +46,20 @@ ratio too crude.
 | 📈 | **Analysis pipeline** | Export CSV, reject timestamp noise, and isolate linear motion |
 
 > [!IMPORTANT]
-> VideoGrapher uses interactive OpenCV windows and requires a graphical desktop.
+> The command-line tool uses interactive OpenCV windows and requires a graphical desktop.
 > The object must be visible in the video's first frame.
+
+## Use it in your browser
+
+Open **[bryanhu.com/videographer](https://bryanhu.com/videographer/)**. It runs
+the same calibrate, select, and track workflow on desktop, tablet, or phone. Nothing to install,
+and your video never leaves your device.
+
+The browser version tracks with OpenCV's MIL tracker (through OpenCV.js) because CSRT isn't
+available there. The CLI uses CSRT, so tracks can differ slightly. The downloaded
+`position_data.json` uses the same format, so every script in the [data toolkit](#data-toolkit)
+works on it. The browser can also export a CSV of time and position directly. It does not
+produce an annotated MP4. Instead you scrub through the tracked frames and see a position plot.
 
 ## Quick start
 
@@ -282,6 +294,7 @@ videographer/
 ├── clean_csv.py             timestamp cleanup and duplicate averaging
 ├── manual_clean_csv.py      alternate/manual cleanup utility
 ├── clean_for_linearized.py  linear-region extraction
+├── web/                     static browser app deployed to GitHub Pages
 ├── pyproject.toml           Python metadata and dependencies
 └── CITATION.cff             machine-readable citation metadata
 ```
