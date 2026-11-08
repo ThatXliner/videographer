@@ -51,7 +51,7 @@ ratio too crude.
 
 ## Use it in your browser
 
-Open **[thatxliner.github.io/videographer](https://thatxliner.github.io/videographer/)**. It runs
+Open **[bryanhu.com/videographer](https://bryanhu.com/videographer/)**. It runs
 the same calibrate, select, and track workflow on desktop, tablet, or phone. Nothing to install,
 and your video never leaves your device.
 

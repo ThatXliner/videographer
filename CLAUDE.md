@@ -110,7 +110,7 @@ python clean_csv.py raw_data.csv --header | python clean_for_linearized.py /dev/
 ## Web app
 
 `web/` is a static, build-free browser version (vanilla JS ES modules) deployed to
-https://thatxliner.github.io/videographer/ by `.github/workflows/pages.yml` on pushes to `main`.
+https://bryanhu.com/videographer/ by `.github/workflows/pages.yml` on pushes to `main`.
 
 - `app.js`: UI state machine. A phase table maps each step (`load`, `calibrateEndpoints`, `calibrateTicks`, `selectObject`, `selectReference`, `tracking`, `results`) to its pointer handlers, render, and Enter/Esc/R actions
 - `video.js`: frame source. Hidden `<video>`, fps detection, `frameAt(i, fps)` seeks to `(i + 0.5) / fps`. Tracking decodes one frame ahead of the worker
