@@ -466,28 +466,35 @@ async function trackFrames(run, keep) {
   render();
   $("track-progress").value = 0;
   $("track-status").textContent = "Loading tracking engine…";
+  // Decoding runs one frame ahead of the worker, so seeks overlap tracking.
+  let next = run.total > 1 ? video.frameAt(1, fps) : null;
   const tracker = keep(await createTracker(first, box));
 
   let lastPaint = 0;
   for (let i = 1; i < run.total && !run.cancelled; i++) {
-    const image = await video.frameAt(i, fps);
+    const image = await next;
     if (state.run !== run) return;
-    const result = await tracker.update(image);
+    // update() transfers the pixels away, so the preview copy is taken first.
+    const now = performance.now();
+    const paint = now - lastPaint > 50 || i === run.total - 1;
+    if (paint) {
+      lastPaint = now;
+      showFrame(image);
+    }
+    const tracked = tracker.update(image);
+    next = i + 1 < run.total ? video.frameAt(i + 1, fps) : null;
+    const result = await tracked;
     run.boxes[i] = result;
     run.processed = i;
     // Python's track_object labels the first frame after the init frame as frame 0.
     if (result.success) {
       run.entries.push(buildEntry({ frame: i - 1, fps, bbox: result.bbox, referencePointName, ticks }));
     }
-    const now = performance.now();
-    if (now - lastPaint > 50 || i === run.total - 1) {
-      lastPaint = now;
+    if (paint) {
       run.shown = i;
-      showFrame(image);
       render();
       $("track-progress").value = i / (run.total - 1);
       $("track-status").textContent = `Frame ${i} of ${run.total - 1} · ${run.entries.length} tracked`;
-      await new Promise(requestAnimationFrame);
     }
   }
 }

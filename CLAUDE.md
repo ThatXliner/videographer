@@ -113,8 +113,9 @@ python clean_csv.py raw_data.csv --header | python clean_for_linearized.py /dev/
 https://thatxliner.github.io/videographer/ by `.github/workflows/pages.yml` on pushes to `main`.
 
 - `app.js`: UI state machine. A phase table maps each step (`load`, `calibrateEndpoints`, `calibrateTicks`, `selectObject`, `selectReference`, `tracking`, `results`) to its pointer handlers, render, and Enter/Esc/R actions
-- `video.js`: frame source. Hidden `<video>`, fps detection, `frameAt(i, fps)` seeks to `(i + 0.5) / fps`
-- `tracker.js`: adapter over OpenCV.js `TrackerMIL` (loaded lazily from jsDelivr; CSRT isn't in any prebuilt OpenCV.js)
+- `video.js`: frame source. Hidden `<video>`, fps detection, `frameAt(i, fps)` seeks to `(i + 0.5) / fps`. Tracking decodes one frame ahead of the worker
+- `tracker.js`: main-thread client for `tracker-worker.js`. Starts the worker on page load and transfers each frame's pixels to it
+- `tracker-worker.js`: classic worker that loads OpenCV.js from jsDelivr and runs `TrackerMIL` (CSRT isn't in any prebuilt OpenCV.js). It feeds MIL the blue channel, which is what the CLI's BGR frames give it
 - `calibration.js`, `reference-points.js`, `export.js`: pure ports of `_pixel_to_cm`, `REFERENCE_POINTS`, and the `position_data.json` schema (including Python's `round` and frame numbering)
 - `plot.js`: SVG position plot for the results step
 
