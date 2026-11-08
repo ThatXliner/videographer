@@ -107,6 +107,28 @@ python clean_csv.py raw_data.csv --header | python clean_for_linearized.py /dev/
 # - Keeps only the linear (constant velocity) middle section
 ```
 
+## Web app
+
+`web/` is a static, build-free browser version (vanilla JS ES modules) deployed to
+https://thatxliner.github.io/videographer/ by `.github/workflows/pages.yml` on pushes to `main`.
+
+- `app.js`: UI state machine. A phase table maps each step (`load`, `calibrateEndpoints`, `calibrateTicks`, `selectObject`, `selectReference`, `tracking`, `results`) to its pointer handlers, render, and Enter/Esc/R actions
+- `video.js`: frame source. Hidden `<video>`, fps detection, `frameAt(i, fps)` seeks to `(i + 0.5) / fps`
+- `tracker.js`: adapter over OpenCV.js `TrackerMIL` (loaded lazily from jsDelivr; CSRT isn't in any prebuilt OpenCV.js)
+- `calibration.js`, `reference-points.js`, `export.js`: pure ports of `_pixel_to_cm`, `REFERENCE_POINTS`, and the `position_data.json` schema (including Python's `round` and frame numbering)
+- `plot.js`: SVG position plot for the results step
+
+```bash
+# Tests (Node 22+, no dependencies)
+node --test "web/tests/*.test.js"
+
+# Regenerate the Python parity fixtures after changing main.py's math
+uv run python web/tests/gen_fixtures.py
+
+# Serve locally
+python -m http.server -d web
+```
+
 ## Architecture
 
 ### Core Components
