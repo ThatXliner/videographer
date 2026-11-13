@@ -183,13 +183,14 @@ python -m http.server -d web
 {
   "metadata": {
     "video_path": "...",
+    "output_path": "output.mp4",
     "total_frames": 300,
     "calibrated": true,
     "reference_point": "bottom-center",
     "calibration": {
       "reference_length_cm": 100.0,
       "tick_positions": [[x, y, cm], ...],
-      "method": "non-linear interpolation with lens distortion correction"
+      "method": "piecewise linear interpolation with lens distortion correction"
     }
   },
   "tracking_data": [
