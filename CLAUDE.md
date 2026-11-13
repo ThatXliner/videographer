@@ -142,7 +142,7 @@ python -m http.server -d web
 
 **MeterStickCalibrator** (main.py)
 - Interactive UI for two-step scale calibration:
-  1. Mark meter stick endpoints (0cm and 100cm)
+  1. Mark reference stick endpoints (0cm and `--stick-length`, default 100cm)
   2. Adjust tick marks (at 10cm intervals) to correct for lens distortion
 - Stores tick positions as [x, y, cm_value] for piecewise linear interpolation
 - Uses drag-and-drop interface for precise tick adjustment
