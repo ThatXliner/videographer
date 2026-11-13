@@ -42,7 +42,7 @@ python to_csv.py position_data.json [options]
 # -a/--axis: x or y
 # -o/--offset: offset value in cm
 # --header: include CSV header
-# --delimiter: CSV delimiter (default comma)
+# --delimiter: CSV delimiter (default tab)
 
 # Example: Extract y-axis bottom of bbox with offset
 python to_csv.py position_data.json -r bbox_bottom -a y -o 1.0 --header > output.csv
@@ -70,7 +70,7 @@ python clean_csv.py raw_data.csv -o cleaned_data.csv --header
 python clean_csv.py raw_data.csv --iqr-factor 1.0 -o cleaned_data.csv
 
 # Use with use-timer data (common workflow)
-python to_csv.py position_data.json -r bbox_bottom -a y --header | python clean_csv.py /dev/stdin -o cleaned.csv
+python to_csv.py position_data.json -r bbox_bottom -a y --header --delimiter , | python clean_csv.py /dev/stdin -o cleaned.csv
 
 # Note: Only timestamps are filtered for outliers (e.g., 2.407 vs 0.1)
 # Position values are never filtered - they are only averaged when timestamps match
